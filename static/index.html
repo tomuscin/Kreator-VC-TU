@@ -270,6 +270,7 @@
       <div id="match-score-badge"></div>
       <p id="match-notes" style="margin-top:8px; font-size:0.85rem; color:var(--grey);"></p>
       <div id="lang-badge" style="margin-top:8px; font-size:0.8rem; color:var(--grey); display:none;"></div>
+      <div id="role-badge" style="margin-top:6px; font-size:0.8rem; color:var(--grey); display:none;"></div>
     </div>
 
     <div class="row" style="margin-top:20px;">
@@ -401,6 +402,8 @@
 
     document.getElementById('match-score-badge').innerHTML = '';
     document.getElementById('match-notes').textContent = '';
+    document.getElementById('lang-badge').style.display = 'none';
+    document.getElementById('role-badge').style.display = 'none';
 
     setStep(2);
     document.getElementById('card-analysis').classList.remove('hidden');
@@ -442,6 +445,34 @@
       }
       langBadge.innerHTML = langHTML;
       langBadge.style.display = 'block';
+      // ─────────────────────────────────────────────────────────────
+
+      // ── Role type badge ───────────────────────────────────────────
+      const roleBadge   = document.getElementById('role-badge');
+      const roleType    = adaptedCV.role_type || 'unknown';
+      const roleConf    = adaptedCV.role_type_confidence || 'low';
+      const roleReason  = adaptedCV.role_type_reasoning || '';
+      const cvEmphasis  = adaptedCV.cv_emphasis || [];
+
+      const roleTypeLabel = {
+        individual_contributor: 'Business Development / Client Partner',
+        sales_leadership:       'Sales Leadership / Management',
+        mixed:                  'Mixed — sprzeda\u017c indywidualna + leadership',
+        unknown:                'Nieustalony',
+      }[roleType] || 'Nieustalony';
+
+      let roleHTML = `Typ roli: <strong>${roleTypeLabel}</strong>`;
+      if (roleConf === 'low') {
+        roleHTML += ` <span style="color:#e07b00;">(niska pewno\u015b\u0107 klasyfikacji)</span>`;
+      }
+      if (roleReason) {
+        roleHTML += `<br><span style="color:var(--grey);">${roleReason}</span>`;
+      }
+      if (cvEmphasis.length > 0) {
+        roleHTML += `<br><span style="color:var(--grey);">Akcenty CV: ${cvEmphasis.join(' \u00b7 ')}</span>`;
+      }
+      roleBadge.innerHTML = roleHTML;
+      roleBadge.style.display = 'block';
       // ─────────────────────────────────────────────────────────────
 
       if (!document.getElementById('field-job-title').value && adaptedCV.job_title)

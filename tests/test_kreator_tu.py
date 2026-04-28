@@ -68,6 +68,10 @@ def sample_adapted_cv(master_cv) -> dict:
         "job_language": "pl",
         "cv_output_language": "pl",
         "language_confidence": "high",
+        "role_type": "sales_leadership",
+        "role_type_confidence": "high",
+        "role_type_reasoning": "Stanowisko Head of Sales z odpowiedzialnością za zespół.",
+        "cv_emphasis": ["leadership", "team management", "revenue growth"],
     }
 
 
@@ -192,6 +196,10 @@ class TestNoHallucination:
             "job_language": "pl",
             "cv_output_language": "pl",
             "language_confidence": "high",
+            "role_type": "individual_contributor",
+            "role_type_confidence": "high",
+            "role_type_reasoning": "Samodzielna rola sprzedażowa.",
+            "cv_emphasis": ["business development"],
             "summary": "Krótkie podsumowanie.",
             "competencies": ["Sprzedaż"],
             "experience": [],
@@ -403,3 +411,180 @@ class TestLanguageDetection:
             "revise_full_cv must preserve cv_output_language from current_cv"
         assert result["job_language"] == "en"
         assert result["language_confidence"] == "high"
+
+
+# ── Test: role type detection ─────────────────────────────────────────
+
+class TestRoleTypeDetection:
+    """Tests for LLM-based role type detection in adapt_cv."""
+
+    def _mock_adapt(self, master_cv, fake_adapted: dict):
+        """Helper: run adapt_cv with a mocked LLM response."""
+        import unittest.mock as mock
+        from src.cv_adapter import adapt_cv
+        with mock.patch("src.cv_adapter.chat") as mock_chat:
+            mock_resp = mock.MagicMock()
+            mock_resp.choices[0].message.content = json.dumps(fake_adapted)
+            mock_chat.return_value = mock_resp
+            return adapt_cv("Sample job posting.", master_cv=master_cv)
+
+    def _base_fake(self, **overrides) -> dict:
+        """Minimal valid LLM response with sensible defaults."""
+        base = {
+            "job_language": "pl",
+            "cv_output_language": "pl",
+            "language_confidence": "high",
+            "summary": "Podsumowanie.",
+            "competencies": ["Sprzedaż B2B"],
+            "experience": [],
+            "ats_keywords": [],
+            "match_score": 70,
+            "match_notes": "",
+            "covered_requirements": [],
+            "gaps": [],
+            "ats_report": {"used": [], "not_used": []},
+            "company": "Firma",
+            "job_title": "Test",
+        }
+        base.update(overrides)
+        return base
+
+    def test_individual_contributor_posting(self, master_cv):
+        """Business Development Manager posting → role_type=individual_contributor."""
+        fake = self._base_fake(
+            role_type="individual_contributor",
+            role_type_confidence="high",
+            role_type_reasoning="Samodzielna rola hunterska bez zarządzania zespołem.",
+            cv_emphasis=["business development", "client acquisition", "outbound"],
+            job_title="Business Development Manager",
+        )
+        result = self._mock_adapt(master_cv, fake)
+        assert result["role_type"] == "individual_contributor"
+        assert result["role_type_confidence"] == "high"
+        assert "business development" in result["cv_emphasis"]
+
+    def test_sales_leadership_posting(self, master_cv):
+        """Head of Sales posting → role_type=sales_leadership."""
+        fake = self._base_fake(
+            role_type="sales_leadership",
+            role_type_confidence="high",
+            role_type_reasoning="Rola kierownicza z odpowiedzialnością za zespół i strategię.",
+            cv_emphasis=["leadership", "team management", "revenue growth", "sales strategy"],
+            job_title="Head of Sales",
+        )
+        result = self._mock_adapt(master_cv, fake)
+        assert result["role_type"] == "sales_leadership"
+        assert result["role_type_confidence"] == "high"
+        assert "leadership" in result["cv_emphasis"]
+
+    def test_mixed_role_posting(self, master_cv):
+        """Mixed role posting → role_type=mixed."""
+        fake = self._base_fake(
+            role_type="mixed",
+            role_type_confidence="medium",
+            role_type_reasoning="Rola łączy własną sprzedaż z budową zespołu.",
+            cv_emphasis=["business development", "leadership", "client acquisition"],
+            job_title="Commercial Director",
+        )
+        result = self._mock_adapt(master_cv, fake)
+        assert result["role_type"] == "mixed"
+        assert result["role_type_confidence"] == "medium"
+
+    def test_fallback_when_role_fields_missing(self, master_cv):
+        """If LLM omits role_type fields, defaults apply: unknown/low/''/'[]'."""
+        fake = self._base_fake()  # no role fields
+        result = self._mock_adapt(master_cv, fake)
+        assert result["role_type"] == "unknown"
+        assert result["role_type_confidence"] == "low"
+        assert result["role_type_reasoning"] == ""
+        assert result["cv_emphasis"] == []
+
+    def test_invalid_role_type_normalised(self, master_cv):
+        """Invalid role_type value is normalised to 'unknown'."""
+        fake = self._base_fake(
+            role_type="director",           # invalid
+            role_type_confidence="extreme", # invalid
+            cv_emphasis="not_a_list",       # invalid
+        )
+        result = self._mock_adapt(master_cv, fake)
+        assert result["role_type"] == "unknown"
+        assert result["role_type_confidence"] == "low"
+        assert result["cv_emphasis"] == []
+
+    def test_validate_role_fields_helper(self):
+        """Unit test for _validate_role_fields() directly."""
+        from src.cv_adapter import _validate_role_fields
+
+        # Valid individual_contributor
+        rt, rc, rr, ce = _validate_role_fields({
+            "role_type": "individual_contributor",
+            "role_type_confidence": "high",
+            "role_type_reasoning": "Samodzielna rola.",
+            "cv_emphasis": ["business development"],
+        })
+        assert rt == "individual_contributor"
+        assert rc == "high"
+        assert rr == "Samodzielna rola."
+        assert ce == ["business development"]
+
+        # Valid sales_leadership
+        rt, rc, rr, ce = _validate_role_fields({
+            "role_type": "sales_leadership",
+            "role_type_confidence": "medium",
+            "role_type_reasoning": "Zarządzanie zespołem.",
+            "cv_emphasis": ["leadership"],
+        })
+        assert rt == "sales_leadership"
+
+        # Missing all → defaults
+        rt, rc, rr, ce = _validate_role_fields({})
+        assert rt == "unknown"
+        assert rc == "low"
+        assert rr == ""
+        assert ce == []
+
+        # Invalid values → defaults
+        rt, rc, rr, ce = _validate_role_fields({
+            "role_type": "ceo", "role_type_confidence": "ultra", "cv_emphasis": 42
+        })
+        assert rt == "unknown"
+        assert rc == "low"
+        assert ce == []
+
+    def test_revise_full_cv_preserves_role_type(self, master_cv):
+        """revise_full_cv must preserve role_type, cv_emphasis from current_cv."""
+        import unittest.mock as mock
+        from src.cv_adapter import revise_full_cv
+
+        current_cv = {
+            "summary": "Experienced sales leader.",
+            "competencies": ["B2B Sales"],
+            "experience": [{"title": "Head of Sales", "dates": "2022 – present", "bullets": ["Led team."]}],
+            "personal": master_cv["personal"],
+            "education": master_cv["education"],
+            "languages": master_cv["languages"],
+            "interests": "",
+            "rodo_clause": "",
+            "job_language": "pl",
+            "cv_output_language": "pl",
+            "language_confidence": "high",
+            "role_type": "sales_leadership",
+            "role_type_confidence": "high",
+            "role_type_reasoning": "Rola kierownicza.",
+            "cv_emphasis": ["leadership", "team management"],
+        }
+        revised_response = {
+            "summary": "Doświadczony lider sprzedaży.",
+            "competencies": ["Strategia sprzedaży"],
+            "experience": [{"title": "Head of Sales", "dates": "2022 – present", "bullets": ["Skalował przychody 2x."]}],
+        }
+        with mock.patch("src.cv_adapter.chat") as mock_chat:
+            mock_resp = mock.MagicMock()
+            mock_resp.choices[0].message.content = json.dumps(revised_response)
+            mock_chat.return_value = mock_resp
+            result = revise_full_cv(current_cv, "Skróć podsumowanie.", "Polskie ogłoszenie.")
+
+        assert result["role_type"] == "sales_leadership", \
+            "revise_full_cv musi zachować role_type z current_cv"
+        assert result["cv_emphasis"] == ["leadership", "team management"]
+        assert result["role_type_reasoning"] == "Rola kierownicza."

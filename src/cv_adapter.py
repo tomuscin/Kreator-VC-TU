@@ -53,6 +53,39 @@ WYKRYWANIE JĘZYKA I JĘZYK WYJŚCIA CV:
 - Dla polskich CV: section_1.name = "Profil zawodowy", section_2.name = "Kluczowe kompetencje".
 - Zwróć pola: job_language ("pl" | "en" | "unknown"), cv_output_language ("pl" | "en-US"), language_confidence ("high" | "medium" | "low").
 
+ROZPOZNAWANIE TYPU STANOWISKA I AKCENTY CV:
+Przed wygenerowaniem sekcji CV sklasyfikuj ogłoszenie pod kątem typu stanowiska:
+- "individual_contributor": samodzielne role biznesowo-sprzedażowe bez wyraźnej odpowiedzialności za zarządzanie zespołem — Business Development Manager, Client Partner, Senior Client Partner, Account Executive, Sales Executive, Key Account Manager, Growth Manager, Partnership Manager, Commercial Manager bez zarządzania zespołem, samodzielna rola hunterska/doradcza/relacyjna.
+- "sales_leadership": rola z odpowiedzialnością za zarządzanie zespołem, strategię sprzedaży, targety, budżet, hiring, coaching, proces, pipeline na poziomie zespołu lub firmy — Head of Sales, Sales Director, VP Sales, Commercial Director, Revenue Director, Country Manager, General Manager, Managing Director, Team Lead, Head of Business Development.
+- "mixed": ogłoszenie łączy samodzielną sprzedaż z odpowiedzialnością za zespół (np. Head of Sales z własną sprzedażą, Client Partner z budową zespołu).
+- "unknown": nie można ustalić na podstawie ogłoszenia.
+
+Na podstawie klasyfikacji dobierz akcenty CV:
+Dla individual_contributor podkreśl:
+- samodzielne pozyskiwanie klientów B2B (business development, hunting, prospecting)
+- budowanie relacji z decydentami
+- consultative selling, discovery, value proposition
+- outbound, cold outreach, personalizacja
+- ICP, account research
+- pipeline ownership i zamykanie szans
+- automatyzacja sprzedaży oparta na AI/LLM (Apollo, GitHub, Python) — jeśli relevantne
+- zdolność do samodzielnego działania
+
+Dla sales_leadership podkreśl:
+- doświadczenie C-level / Head of Sales / Managing Director / Członek Zarządu
+- zarządzanie, budowanie i coaching zespołu sprzedaży
+- strategia sprzedaży i GTM
+- sales operations, procesy, KPI, budżety
+- wzrost przychodów, P&L
+- zarządzanie pipeline'em na poziomie zespołu/firmy
+- cross-functional leadership (marketing, produkt, IT, finanse, ryzyko)
+- hiring i skalowanie organizacji sprzedaży
+
+Dla mixed: łącz oba obszary, priorytet nadaj temu, co silniej wynika z ogłoszenia.
+Nie wymyślaj doświadczenia — używaj wyłącznie potwierdzonego profilu bazowego.
+
+Zwróć pola: role_type ("individual_contributor" | "sales_leadership" | "mixed" | "unknown"), role_type_confidence ("high" | "medium" | "low"), role_type_reasoning (krótkie wyjaśnienie, 1-2 zdania), cv_emphasis (lista akcentów wybranych do CV, max 8 pozycji).
+
 LIMITY ZNAKÓW (bezwzględne — nie przekraczaj):
 - Podsumowanie zawodowe / Professional Summary: max 900 znaków
 - Lista kompetencji (łącznie wszystkie): max 600 znaków
@@ -64,6 +97,31 @@ Odpowiedź zawsze w formacie JSON, zgodnie ze schematem wyjściowym.
 
 
 # ── Language field validation ─────────────────────────────────────────
+
+def _validate_role_fields(adapted: dict) -> tuple[str, str, str, list]:
+    """
+    Validates and normalises LLM-returned role type fields.
+    Returns (role_type, role_type_confidence, role_type_reasoning, cv_emphasis).
+    """
+    valid_types = ("individual_contributor", "sales_leadership", "mixed", "unknown")
+    valid_conf  = ("high", "medium", "low")
+
+    role_type   = adapted.get("role_type", "unknown")
+    rt_conf     = adapted.get("role_type_confidence", "low")
+    rt_reason   = adapted.get("role_type_reasoning", "")
+    cv_emphasis = adapted.get("cv_emphasis", [])
+
+    if role_type not in valid_types:
+        role_type = "unknown"
+    if rt_conf not in valid_conf:
+        rt_conf = "low"
+    if not isinstance(cv_emphasis, list):
+        cv_emphasis = []
+    if not isinstance(rt_reason, str):
+        rt_reason = ""
+
+    return role_type, rt_conf, rt_reason, cv_emphasis
+
 
 def _validate_language_fields(adapted: dict) -> tuple[str, str, str]:
     """
@@ -91,6 +149,10 @@ OUTPUT_SCHEMA = {
     "job_language": "\"pl\" | \"en\" | \"unknown\" — dominant language of the job posting",
     "cv_output_language": "\"pl\" | \"en-US\" — language used for all generated CV sections",
     "language_confidence": "\"high\" | \"medium\" | \"low\" — confidence in language detection",
+    "role_type": "\"individual_contributor\" | \"sales_leadership\" | \"mixed\" | \"unknown\" — classified role type",
+    "role_type_confidence": "\"high\" | \"medium\" | \"low\" — confidence in role type classification",
+    "role_type_reasoning": "string — brief explanation of role classification (1-2 sentences)",
+    "cv_emphasis": "list[string] — selected emphasis areas for this CV (max 8 items)",
     "summary": "string — profil zawodowy / Professional Summary (max 900 znaków/chars)",
     "competencies": "list[string] — lista kompetencji / Key Competencies (max 14 items, total max 600 chars)",
     "experience": [
@@ -144,11 +206,12 @@ def adapt_cv(job_posting: str, master_cv: dict | None = None) -> dict:
 ## ZADANIE:
 1. Wykryj dominujący język ogłoszenia (job_language: "pl" | "en" | "unknown").
 2. Określ język wyjścia CV (cv_output_language: "pl" | "en-US") i pewność detekcji (language_confidence: "high" | "medium" | "low").
-3. Dostosuj treść CV Tomasza Uścińskiego do tego ogłoszenia w wykrytym języku wyjścia.
+3. Sklasyfikuj typ stanowiska (role_type: "individual_contributor" | "sales_leadership" | "mixed" | "unknown"), pewność klasyfikacji (role_type_confidence: "high" | "medium" | "low"), krótkie uzasadnienie (role_type_reasoning, 1-2 zdania) i wybierz akcenty CV (cv_emphasis: lista max 8 pozycji).
+4. Dostosuj treść CV Tomasza Uścińskiego do tego ogłoszenia w wykrytym języku wyjścia, akcentując kwalifikacje odpowiednie do sklasyfikowanego typu roli zgodnie z regułami SYSTEM_PROMPT.
    - Jeśli cv_output_language = "en-US": pisz WSZYSTKIE sekcje po angielsku (Professional Summary, Key Competencies, bullets). Nie tłumacz dosłownie — przepisz naturalnym executive English.
    - Jeśli cv_output_language = "pl": pisz WSZYSTKIE sekcje po polsku.
-4. Zachowaj wszystkie stanowiska, daty i fakty. Podkreśl doświadczenia relevantne dla tej roli.
-5. Używaj słów kluczowych z ogłoszenia tam, gdzie naturalnie pasują do realnego doświadczenia.
+5. Zachowaj wszystkie stanowiska, daty i fakty. Podkreśl doświadczenia relevantne dla tej roli.
+6. Używaj słów kluczowych z ogłoszenia tam, gdzie naturalnie pasują do realnego doświadczenia.
 PILNUJ LIMITÓW ZNAKÓW — podsumowanie max 900, kompetencje łącznie max 600, każdy bullet max 200.
 NIE wymyślaj kompetencji, liczb ani osiągnięć spoza profilu bazowego.
 
@@ -181,6 +244,7 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
         raise ValueError(f"LLM zwrócił niepoprawny JSON: {exc}\n\nRaw:\n{raw}") from exc
 
     job_language, cv_output_language, language_confidence = _validate_language_fields(adapted)
+    role_type, role_type_confidence, role_type_reasoning, cv_emphasis = _validate_role_fields(adapted)
 
     result = {
         "personal":             master_cv["personal"],
@@ -202,6 +266,10 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
         "job_language":         job_language,
         "cv_output_language":   cv_output_language,
         "language_confidence":  language_confidence,
+        "role_type":            role_type,
+        "role_type_confidence": role_type_confidence,
+        "role_type_reasoning":  role_type_reasoning,
+        "cv_emphasis":          cv_emphasis,
     }
 
     return result
@@ -250,6 +318,10 @@ def analyze_job_posting(job_posting: str) -> dict:
   "job_language": "pl" | "en" | "unknown",
   "cv_output_language": "pl" | "en-US",
   "language_confidence": "high" | "medium" | "low",
+  "role_type": "individual_contributor" | "sales_leadership" | "mixed" | "unknown",
+  "role_type_confidence": "high" | "medium" | "low",
+  "role_type_reasoning": "brief explanation of role classification (1-2 sentences)",
+  "cv_emphasis": ["list of CV emphasis areas selected for this role, max 8"],
   "required_experience": ["list of experience requirements"],
   "responsibilities": ["list of main responsibilities"],
   "technologies": ["tools, systems, platforms"],
@@ -264,6 +336,12 @@ Rules for language fields:
 - job_language: dominant language of the job posting text
 - cv_output_language: "en-US" if job_language is "en", "pl" otherwise
 - language_confidence: how confident you are in the language detection
+
+Rules for role_type:
+- "individual_contributor": standalone BD / client partner / AE / KAM / commercial roles without people management
+- "sales_leadership": Head of Sales / Director / VP / GM / MD / Team Lead roles with team, strategy, hiring, budgets
+- "mixed": role combines individual sales ownership with team leadership responsibility
+- "unknown": cannot determine from the posting
 
 JOB POSTING:
 {job_posting}"""
@@ -286,6 +364,13 @@ JOB POSTING:
     result["job_language"]        = job_lang
     result["cv_output_language"]  = cv_lang
     result["language_confidence"] = conf
+
+    # Apply role type field validation/normalisation
+    role_type, rt_conf, rt_reason, cv_emphasis = _validate_role_fields(result)
+    result["role_type"]            = role_type
+    result["role_type_confidence"] = rt_conf
+    result["role_type_reasoning"]  = rt_reason
+    result["cv_emphasis"]          = cv_emphasis
     return result
 
 
@@ -364,6 +449,8 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
     matches the language already used in the CV, not the instruction language.
     """
     cv_output_language = current_cv.get("cv_output_language", "pl")
+    role_type          = current_cv.get("role_type", "unknown")
+    cv_emphasis        = current_cv.get("cv_emphasis", [])
 
     if cv_output_language == "en-US":
         lang_rule = (
@@ -379,6 +466,30 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
             "Nie zmieniaj języka na angielski, nawet jeśli instrukcja użytkownika jest po angielsku. "
             "Zachowaj język, chyba że użytkownik wyraźnie prosi o zmianę języka."
         )
+
+    # Build role emphasis rule for the revision prompt
+    if role_type == "individual_contributor":
+        role_rule = (
+            "The current role type is individual_contributor. "
+            "Preserve emphasis on: business development, client acquisition, independent sales execution, "
+            "consultative selling, outbound, pipeline ownership and relationship building. "
+            "Do NOT shift emphasis towards team management or leadership unless the user explicitly asks."
+        )
+    elif role_type == "sales_leadership":
+        role_rule = (
+            "The current role type is sales_leadership. "
+            "Preserve emphasis on: leadership, team management, sales strategy, P&L, revenue growth, "
+            "sales operations, hiring and coaching. "
+            "Do NOT shift emphasis towards individual sales execution unless the user explicitly asks."
+        )
+    elif role_type == "mixed":
+        role_rule = (
+            "The current role type is mixed (individual sales + team leadership). "
+            "Preserve a balanced emphasis covering both individual contribution and leadership. "
+            "Do NOT drop either perspective unless the user explicitly asks."
+        )
+    else:
+        role_rule = "Preserve the current CV positioning and emphasis."
     cv_snapshot = {
         "summary":      current_cv.get("summary", ""),
         "competencies": current_cv.get("competencies", []),
@@ -421,6 +532,7 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
 - Zastosuj instrukcję użytkownika do treści
 - LIMITY: podsumowanie max 900 znaków, kompetencje łącznie max 600, każdy bullet max 200
 - JĘZYK: {lang_rule}
+- AKCENTY CV: {role_rule}
 - Zwróć TYLKO poprawny JSON zgodny ze schematem poniżej:
 {json.dumps(schema, ensure_ascii=False, indent=2)}
 """.strip()
@@ -449,8 +561,12 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
         current_cv.get("experience", []),
         revised.get("experience", []),
     )
-    # Preserve language fields from current CV — revision does not change detected language
-    result.setdefault("job_language",        current_cv.get("job_language", "unknown"))
-    result.setdefault("cv_output_language",  current_cv.get("cv_output_language", "pl"))
-    result.setdefault("language_confidence", current_cv.get("language_confidence", "low"))
+    # Preserve language and role fields from current CV — revision does not change detected values
+    result.setdefault("job_language",           current_cv.get("job_language", "unknown"))
+    result.setdefault("cv_output_language",     current_cv.get("cv_output_language", "pl"))
+    result.setdefault("language_confidence",    current_cv.get("language_confidence", "low"))
+    result.setdefault("role_type",              current_cv.get("role_type", "unknown"))
+    result.setdefault("role_type_confidence",   current_cv.get("role_type_confidence", "low"))
+    result.setdefault("role_type_reasoning",    current_cv.get("role_type_reasoning", ""))
+    result.setdefault("cv_emphasis",            current_cv.get("cv_emphasis", []))
     return result
