@@ -112,27 +112,76 @@ def _build_doc(cv_data: dict) -> Document:
 
     # ── Work Experience ──────────────────────────────────────────────
     _section_heading(doc, H["experience"])
-    for job in cv_data.get("experience", []):
-        p_job = doc.add_paragraph()
-        p_job.paragraph_format.space_before = Pt(6)
-        r_title = p_job.add_run(job["title"])
-        r_title.bold = True
-        r_title.font.size = Pt(11)
-        r_title.font.color.rgb = COLOR_SECTION
-        r_title.font.name = FONT_NAME
-        r_dates = p_job.add_run(f"   {job['dates']}")
-        r_dates.font.size = Pt(10)
-        r_dates.font.color.rgb = COLOR_LIGHT
-        r_dates.font.name = FONT_NAME
+    fixed_facts = cv_data.get("fixed_experience_facts", [])
+    if fixed_facts:
+        # Build bullets lookup keyed by company name from adapted experience
+        bullets_lookup: dict[str, list] = {}
+        for job in cv_data.get("experience", []):
+            company_key = job.get("company", "").strip()
+            if company_key:
+                bullets_lookup[company_key] = job.get("bullets", [])
 
-        for bullet in job.get("bullets", []):
-            if bullet.strip():
-                p_b = doc.add_paragraph(style="List Bullet")
-                p_b.paragraph_format.left_indent = Inches(0.25)
-                r_b = p_b.add_run(bullet)
-                r_b.font.size = Pt(10)
-                r_b.font.color.rgb = COLOR_TEXT
-                r_b.font.name = FONT_NAME
+        for fact in fixed_facts:
+            role    = fact.get("role_en") if lang == "en-US" else fact.get("role_pl", "")
+            period  = fact.get("period_en") if lang == "en-US" else fact.get("period_pl", "")
+            company  = fact["company"]
+            industry = fact["industry"]
+            bullets  = bullets_lookup.get(company, [])
+
+            # Role + period line (bold blue)
+            p_job = doc.add_paragraph()
+            p_job.paragraph_format.space_before = Pt(8)
+            r_role = p_job.add_run(role)
+            r_role.bold = True
+            r_role.font.size = Pt(11)
+            r_role.font.color.rgb = COLOR_SECTION
+            r_role.font.name = FONT_NAME
+            r_period = p_job.add_run(f"   {period}")
+            r_period.font.size = Pt(10)
+            r_period.font.color.rgb = COLOR_LIGHT
+            r_period.font.name = FONT_NAME
+
+            # Company | Industry line (italic grey)
+            p_co = doc.add_paragraph()
+            p_co.paragraph_format.space_before = Pt(0)
+            p_co.paragraph_format.space_after  = Pt(2)
+            r_co = p_co.add_run(f"{company}  |  {industry}")
+            r_co.font.size = Pt(10)
+            r_co.font.color.rgb = COLOR_LIGHT
+            r_co.italic = True
+            r_co.font.name = FONT_NAME
+
+            for bullet in bullets:
+                if bullet.strip():
+                    p_b = doc.add_paragraph(style="List Bullet")
+                    p_b.paragraph_format.left_indent = Inches(0.25)
+                    r_b = p_b.add_run(bullet)
+                    r_b.font.size = Pt(10)
+                    r_b.font.color.rgb = COLOR_TEXT
+                    r_b.font.name = FONT_NAME
+    else:
+        # Fallback: plain experience rendering (no fixed_facts available)
+        for job in cv_data.get("experience", []):
+            p_job = doc.add_paragraph()
+            p_job.paragraph_format.space_before = Pt(6)
+            r_title = p_job.add_run(job["title"])
+            r_title.bold = True
+            r_title.font.size = Pt(11)
+            r_title.font.color.rgb = COLOR_SECTION
+            r_title.font.name = FONT_NAME
+            r_dates = p_job.add_run(f"   {job['dates']}")
+            r_dates.font.size = Pt(10)
+            r_dates.font.color.rgb = COLOR_LIGHT
+            r_dates.font.name = FONT_NAME
+
+            for bullet in job.get("bullets", []):
+                if bullet.strip():
+                    p_b = doc.add_paragraph(style="List Bullet")
+                    p_b.paragraph_format.left_indent = Inches(0.25)
+                    r_b = p_b.add_run(bullet)
+                    r_b.font.size = Pt(10)
+                    r_b.font.color.rgb = COLOR_TEXT
+                    r_b.font.name = FONT_NAME
 
     # NOTE: WYKSZTAŁCENIE (Education) and OBSZARY ZAINTERESOWAŃ (Interests)
     # sections are intentionally NOT rendered in the final CV.
@@ -141,7 +190,13 @@ def _build_doc(cv_data: dict) -> Document:
     # ── Languages ───────────────────────────────────────────────────
     _section_heading(doc, H["languages"])
     for lang_item in cv_data.get("languages", []):
-        _body_paragraph(doc, f"{lang_item['language']} – {lang_item['level']}")
+        if lang == "en-US":
+            name  = lang_item.get("language_en", lang_item["language"])
+            level = lang_item.get("level_en", lang_item["level"])
+        else:
+            name  = lang_item["language"]
+            level = lang_item["level"]
+        _body_paragraph(doc, f"{name} – {level}")
 
     # NOTE: ATS keywords are intentionally NOT rendered in the final CV.
     # They are used only as LLM context and shown in the UI analysis panel.

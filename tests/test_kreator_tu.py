@@ -1139,12 +1139,14 @@ class TestDocxLocalization:
             "experience": [
                 {
                     "title": "Head of Sales",
+                    "company": "",
                     "dates": "2025 – present" if lang == "en-US" else "2025 – nadal",
                     "bullets": ["Grew pipeline by 2x." if lang == "en-US" else "Rozwinął pipeline."],
                 }
             ],
             "ats_keywords": [],
             "cv_output_language": lang,
+            "fixed_experience_facts": master_cv.get("fixed_experience_facts", []),
         }
 
     def test_polish_headings_in_docx(self, master_cv):
@@ -1260,3 +1262,108 @@ class TestDocxLocalization:
             text = _docx_full_text(out)
             assert "I hereby consent" not in text, \
                 "Polskie CV nie może zawierać angielskiej klauzuli RODO"
+
+    # ── Experience companies and industries ───────────────────────────
+
+    def test_experience_en_contains_all_companies(self, master_cv):
+        """English DOCX must contain all 7 company names from fixed_experience_facts."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_exp_companies.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            for company in [
+                "Profitia Consultants",
+                "OneStep Financial UK",
+                "Gizmi SA",
+                "Boomerun",
+                "HFT Brokers SA",
+                "TMS Brokers SA",
+                "XTB SA",
+            ]:
+                assert company in text, f"DOCX EN musi zawierać firmę '{company}'"
+
+    def test_experience_en_contains_industries(self, master_cv):
+        """English DOCX must contain industry descriptions for all positions."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_exp_industries.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            for industry_fragment in [
+                "Procurement SaaS",
+                "Digital Money FinTech",
+                "FinTech & MarTech SaaS",
+                "InsurTech & SportTech PaaS",
+                "Online Brokerage House",
+                "Private Banking",
+            ]:
+                assert industry_fragment in text, \
+                    f"DOCX EN musi zawierać branżę '{industry_fragment}'"
+
+    def test_experience_en_contains_periods(self, master_cv):
+        """English DOCX must contain correct EN periods from fixed_experience_facts."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_exp_periods_en.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            for period in ["2025 – present", "2023 – 2025", "2021 – 2023",
+                           "2018 – 2021", "2014 – 2016", "2009 – 2012", "2006 – 2009"]:
+                assert period in text, f"DOCX EN musi zawierać okres '{period}'"
+
+    def test_experience_pl_contains_nadal(self, master_cv):
+        """Polish DOCX must contain 'nadal' for the current position."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "pl")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_exp_period_pl.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "2025 – nadal" in text, "DOCX PL musi zawierać '2025 – nadal'"
+            assert "Profitia Consultants" in text
+            assert "Procurement SaaS" in text
+
+    # ── Languages localization ────────────────────────────────────────
+
+    def test_languages_english_in_en_docx(self, master_cv):
+        """English DOCX must show English language names and levels."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_lang_en.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "English" in text, "DOCX EN musi zawierać 'English'"
+            assert "Polish" in text, "DOCX EN musi zawierać 'Polish'"
+            assert "native" in text, "DOCX EN musi zawierać 'native'"
+
+    def test_languages_no_polish_labels_in_en_docx(self, master_cv):
+        """English DOCX must NOT contain Polish language labels."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_lang_no_pl.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "Język angielski" not in text, \
+                "DOCX EN nie może zawierać 'Język angielski'"
+            assert "Język polski" not in text, \
+                "DOCX EN nie może zawierać 'Język polski'"
+            assert "ojczysty" not in text, \
+                "DOCX EN nie może zawierać 'ojczysty'"
+
+    def test_languages_polish_labels_in_pl_docx(self, master_cv):
+        """Polish DOCX must contain Polish language labels."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "pl")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_lang_pl.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "Język angielski" in text
+            assert "Język polski" in text
+            assert "ojczysty" in text

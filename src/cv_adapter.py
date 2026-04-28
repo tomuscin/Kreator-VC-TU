@@ -416,6 +416,7 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
         "role_type_confidence": role_type_confidence,
         "role_type_reasoning":  role_type_reasoning,
         "cv_emphasis":          cv_emphasis,
+        "fixed_experience_facts": master_cv.get("fixed_experience_facts", []),
     }
 
     return result
@@ -430,6 +431,7 @@ def _merge_experience(master_exp: list, adapted_exp: list) -> list:
         if title in adapted_map:
             merged.append({
                 "title":   orig["title"],
+                "company": orig.get("company", ""),
                 "dates":   orig["dates"],
                 "bullets": adapted_map[title].get("bullets", orig["bullets"]),
             })

@@ -139,11 +139,15 @@
   "languages": [
     {
       "language": "Język angielski",
-      "level": "C2"
+      "language_en": "English",
+      "level": "C2",
+      "level_en": "C2"
     },
     {
       "language": "Język polski",
-      "level": "ojczysty"
+      "language_en": "Polish",
+      "level": "ojczysty",
+      "level_en": "native"
     }
   ],
   "interests": "FinTech, AI & LLM applications in business, B2B sales innovation, startup ecosystems, financial markets, product design",
@@ -209,15 +213,26 @@
   ],
   "experience": [
     {
-      "title": "Senior Client Partner / Procurement Technology",
-      "company": "SpendGuru / Profitia",
-      "dates": "2022 – present",
+      "title": "Senior Client Partner",
+      "company": "Profitia Consultants",
+      "dates": "2025 – present",
       "bullets": [
         "Business development and client acquisition in B2B SaaS / procurement technology.",
         "Building value propositions for procurement, finance and executive decision-makers.",
         "Supporting sales communication, outreach and market education initiatives.",
         "Connecting client business needs with data-driven procurement solutions.",
         "Designing AI-assisted outreach workflows and personalized cold email campaigns."
+      ]
+    },
+    {
+      "title": "Sales Executive",
+      "company": "OneStep Financial UK",
+      "dates": "2023 – 2025",
+      "bullets": [
+        "B2B sales and new business development for a digital money FinTech platform.",
+        "Managing the full sales cycle from prospecting to closing for UK and European markets.",
+        "Building relationships with financial services clients and institutional decision-makers.",
+        "Supporting go-to-market execution and client onboarding for digital financial products."
       ]
     },
     {
@@ -234,9 +249,9 @@
       ]
     },
     {
-      "title": "Founder | CEO",
-      "company": "Boomerun Sp. z o.o.",
-      "dates": "December 2018 – January 2021",
+      "title": "Founder, CEO",
+      "company": "Boomerun",
+      "dates": "2018 – 2021",
       "bullets": [
         "Founded and led InsurTech / mobile app rewarding healthy lifestyle.",
         "Responsible for business strategy, product, marketing, PR, revenue, P&L, finance, fundraising.",
