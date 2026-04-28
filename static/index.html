@@ -272,6 +272,7 @@
       <div id="lang-badge" style="margin-top:8px; font-size:0.8rem; color:var(--grey); display:none;"></div>
       <div id="role-badge" style="margin-top:6px; font-size:0.8rem; color:var(--grey); display:none;"></div>
       <div id="ats-strategy-badge" style="margin-top:6px; font-size:0.8rem; color:var(--grey); display:none;"></div>
+      <div id="gap-analysis-badge" style="margin-top:10px; font-size:0.82rem; display:none;"></div>
     </div>
 
     <div class="row" style="margin-top:20px;">
@@ -406,6 +407,7 @@
     document.getElementById('lang-badge').style.display = 'none';
     document.getElementById('role-badge').style.display = 'none';
     document.getElementById('ats-strategy-badge').style.display = 'none';
+    document.getElementById('gap-analysis-badge').style.display = 'none';
 
     setStep(2);
     document.getElementById('card-analysis').classList.remove('hidden');
@@ -499,6 +501,42 @@
         atsBadge.style.display = 'block';
       }
       // ─────────────────────────────────────────────────────────────
+
+      // ── Gap analysis badge ─────────────────────────────────────────────
+      const gapBadge = document.getElementById('gap-analysis-badge');
+      const gapAnalysis = adaptedCV.experience_gap_analysis || {};
+      const gapTitle = gapAnalysis.title || '';
+      const gapText  = gapAnalysis.text  || '';
+      const gapConfirmed     = gapAnalysis.confirmed_strengths || [];
+      const gapGaps          = gapAnalysis.gaps || [];
+      const gapTransferable  = gapAnalysis.transferable_angles || [];
+      const gapDoNotClaim    = gapAnalysis.do_not_claim || [];
+
+      if (gapText || gapGaps.length > 0) {
+        let gapHTML = `<div style="border-left:3px solid #e07b00; padding:8px 12px; background:#fff8f0; border-radius:0 8px 8px 0;">`;
+        if (gapTitle) {
+          gapHTML += `<div style="font-weight:600; color:#b05000; margin-bottom:6px;">${gapTitle}</div>`;
+        }
+        if (gapText) {
+          gapHTML += `<div style="color:#4a3000; line-height:1.5;">${gapText}</div>`;
+        }
+        if (gapConfirmed.length > 0) {
+          gapHTML += `<div style="margin-top:8px; color:#1a5c1a;"><strong>&#10003; Potwierdzone:</strong> ${gapConfirmed.join(' · ')}</div>`;
+        }
+        if (gapGaps.length > 0) {
+          gapHTML += `<div style="margin-top:4px; color:#b05000;"><strong>&#8710; Luki:</strong> ${gapGaps.join(' · ')}</div>`;
+        }
+        if (gapTransferable.length > 0) {
+          gapHTML += `<div style="margin-top:4px; color:#0055aa;"><strong>&#8594; Transferowalne:</strong> ${gapTransferable.join(' · ')}</div>`;
+        }
+        if (gapDoNotClaim.length > 0) {
+          gapHTML += `<div style="margin-top:4px; color:#888;"><strong>&#8856; Nie dopisuj:</strong> ${gapDoNotClaim.join(' · ')}</div>`;
+        }
+        gapHTML += '</div>';
+        gapBadge.innerHTML = gapHTML;
+        gapBadge.style.display = 'block';
+      }
+      // ─────────────────────────────────────────────────────
 
       if (!document.getElementById('field-job-title').value && adaptedCV.job_title)
         document.getElementById('field-job-title').value = adaptedCV.job_title;

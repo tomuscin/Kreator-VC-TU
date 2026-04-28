@@ -80,6 +80,14 @@ def sample_adapted_cv(master_cv) -> dict:
             "excluded_keywords": ["Salesforce"],
             "naturalness_notes": "Słowa kluczowe wplecione w profil zawodowy.",
         },
+        "experience_gap_analysis": {
+            "title": "Niedopasowanie doświadczenia do ogłoszenia",
+            "text": "Profil Tomasza dobrze pokrywa sprzedaż B2B i SaaS.",
+            "confirmed_strengths": ["B2B sales", "SaaS"],
+            "gaps": [],
+            "transferable_angles": [],
+            "do_not_claim": [],
+        },
     }
 
 
@@ -800,3 +808,221 @@ class TestATSKeywordStrategy:
         for phrase in forbidden:
             assert phrase.lower() not in prompt_lower, \
                 f"SYSTEM_PROMPT zawiera niedozwoloną frazę: '{phrase}'"
+
+
+# ── Test: experience gap analysis ────────────────────────────────────
+
+class TestExperienceGapAnalysis:
+    """Tests for experience_gap_analysis field in adapt_cv and revise_full_cv."""
+
+    def _mock_adapt(self, master_cv, fake_adapted: dict):
+        import unittest.mock as mock
+        from src.cv_adapter import adapt_cv
+        with mock.patch("src.cv_adapter.chat") as mock_chat:
+            mock_resp = mock.MagicMock()
+            mock_resp.choices[0].message.content = json.dumps(fake_adapted)
+            mock_chat.return_value = mock_resp
+            return adapt_cv("Sample job posting.", master_cv=master_cv)
+
+    def _base_fake(self, **overrides) -> dict:
+        base = {
+            "job_language": "pl",
+            "cv_output_language": "pl",
+            "language_confidence": "high",
+            "role_type": "individual_contributor",
+            "role_type_confidence": "high",
+            "role_type_reasoning": "Samodzielna rola.",
+            "cv_emphasis": ["business development"],
+            "summary": "Podsumowanie.",
+            "competencies": ["Sprzedaż B2B"],
+            "experience": [],
+            "ats_keywords": [],
+            "match_score": 70,
+            "match_notes": "",
+            "covered_requirements": [],
+            "gaps": [],
+            "ats_report": {"used": [], "not_used": []},
+            "company": "Firma",
+            "job_title": "BDM",
+        }
+        base.update(overrides)
+        return base
+
+    def test_gap_analysis_present_in_result(self, master_cv):
+        """adapt_cv result always contains experience_gap_analysis dict."""
+        fake = self._base_fake(experience_gap_analysis={
+            "title": "Niedopasowanie doświadczenia do ogłoszenia",
+            "text": "Profil Tomasza dobrze pokrywa sprzedaż B2B i SaaS.",
+            "confirmed_strengths": ["B2B sales", "SaaS"],
+            "gaps": ["agency trading"],
+            "transferable_angles": ["MarTech commercialization"],
+            "do_not_claim": ["media agency network"],
+        })
+        result = self._mock_adapt(master_cv, fake)
+        gap = result["experience_gap_analysis"]
+        assert isinstance(gap, dict)
+        assert gap["title"] == "Niedopasowanie doświadczenia do ogłoszenia"
+        assert gap["text"] == "Profil Tomasza dobrze pokrywa sprzedaż B2B i SaaS."
+        assert "B2B sales" in gap["confirmed_strengths"]
+        assert "agency trading" in gap["gaps"]
+        assert "MarTech commercialization" in gap["transferable_angles"]
+        assert "media agency network" in gap["do_not_claim"]
+
+    def test_missing_gap_analysis_gets_fallback(self, master_cv):
+        """If LLM omits experience_gap_analysis, result gets safe empty defaults."""
+        fake = self._base_fake()  # no experience_gap_analysis
+        result = self._mock_adapt(master_cv, fake)
+        gap = result["experience_gap_analysis"]
+        assert isinstance(gap, dict)
+        assert "title" in gap
+        assert gap["text"] == ""
+        assert gap["confirmed_strengths"] == []
+        assert gap["gaps"] == []
+        assert gap["transferable_angles"] == []
+        assert gap["do_not_claim"] == []
+
+    def test_polish_cv_gets_polish_title(self, master_cv):
+        """For cv_output_language=pl, gap analysis title must be Polish."""
+        fake = self._base_fake(cv_output_language="pl")  # no gap analysis provided
+        result = self._mock_adapt(master_cv, fake)
+        gap = result["experience_gap_analysis"]
+        assert gap["title"] == "Niedopasowanie doświadczenia do ogłoszenia"
+
+    def test_english_cv_gets_english_title(self, master_cv):
+        """For cv_output_language=en-US, gap analysis title must be English."""
+        fake = self._base_fake(
+            job_language="en",
+            cv_output_language="en-US",
+        )  # no gap analysis provided
+        result = self._mock_adapt(master_cv, fake)
+        gap = result["experience_gap_analysis"]
+        assert gap["title"] == "Experience gaps vs. job posting"
+
+    def test_invalid_gap_analysis_normalised(self, master_cv):
+        """Non-dict experience_gap_analysis is replaced with safe defaults."""
+        fake = self._base_fake(experience_gap_analysis="not_a_dict")
+        result = self._mock_adapt(master_cv, fake)
+        gap = result["experience_gap_analysis"]
+        assert isinstance(gap, dict)
+        assert gap["text"] == ""
+        assert isinstance(gap["gaps"], list)
+
+    def test_validate_gap_analysis_helper(self):
+        """Unit test for _validate_gap_analysis() directly."""
+        from src.cv_adapter import _validate_gap_analysis
+
+        # Full valid PL input
+        gap = _validate_gap_analysis({
+            "experience_gap_analysis": {
+                "title": "Niedopasowanie",
+                "text": "Opis luk.",
+                "confirmed_strengths": ["B2B sales"],
+                "gaps": ["media agency"],
+                "transferable_angles": ["MarTech"],
+                "do_not_claim": ["agency trading"],
+            }
+        }, cv_output_language="pl")
+        assert gap["title"] == "Niedopasowanie"
+        assert gap["text"] == "Opis luk."
+        assert gap["confirmed_strengths"] == ["B2B sales"]
+
+        # Missing entirely → defaults with Polish title
+        gap_pl = _validate_gap_analysis({}, cv_output_language="pl")
+        assert gap_pl["title"] == "Niedopasowanie doświadczenia do ogłoszenia"
+        assert gap_pl["text"] == ""
+        assert gap_pl["gaps"] == []
+
+        # Missing entirely → defaults with English title
+        gap_en = _validate_gap_analysis({}, cv_output_language="en-US")
+        assert gap_en["title"] == "Experience gaps vs. job posting"
+
+        # Invalid list fields → empty lists
+        gap_bad = _validate_gap_analysis({"experience_gap_analysis": {
+            "confirmed_strengths": "not_a_list",
+            "gaps": 42,
+        }}, cv_output_language="pl")
+        assert gap_bad["confirmed_strengths"] == []
+        assert gap_bad["gaps"] == []
+
+    def test_gap_analysis_not_in_docx(self, master_cv):
+        """experience_gap_analysis must not appear in generated DOCX text."""
+        from src.docx_generator import generate_cv_docx
+        from docx import Document
+
+        cv_with_gap = {
+            "personal": master_cv["personal"],
+            "education": master_cv["education"],
+            "languages": master_cv["languages"],
+            "interests": "",
+            "rodo_clause": "",
+            "summary": "Podsumowanie testowe.",
+            "competencies": ["Sprzedaż B2B"],
+            "experience": [],
+            "ats_keywords": [],
+            "experience_gap_analysis": {
+                "title": "Niedopasowanie doświadczenia do ogłoszenia",
+                "text": "SEKRET_LUKI_NIE_W_CV nie powinien trafić do DOCX.",
+                "confirmed_strengths": [],
+                "gaps": ["SEKRET_LUKI"],
+                "transferable_angles": [],
+                "do_not_claim": [],
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = Path(tmpdir) / "test_gap.docx"
+            generate_cv_docx(cv_with_gap, output)
+            doc = Document(str(output))
+            full_text = " ".join(p.text for p in doc.paragraphs)
+            assert "SEKRET_LUKI" not in full_text, \
+                "experience_gap_analysis nie może trafić do pliku DOCX"
+
+    def test_revise_full_cv_preserves_gap_analysis(self, master_cv):
+        """revise_full_cv must preserve experience_gap_analysis from current_cv when LLM doesn't return one."""
+        import unittest.mock as mock
+        from src.cv_adapter import revise_full_cv
+
+        original_gap = {
+            "title": "Niedopasowanie doświadczenia do ogłoszenia",
+            "text": "Opis luk z pierwszego generowania.",
+            "confirmed_strengths": ["B2B sales"],
+            "gaps": ["agency trading"],
+            "transferable_angles": ["MarTech"],
+            "do_not_claim": ["media agency network"],
+        }
+        current_cv = {
+            "summary": "Podsumowanie.",
+            "competencies": ["Sprzedaż B2B"],
+            "experience": [{"title": "Head of Sales", "dates": "2022 – present", "bullets": ["Led team."]}],
+            "personal": master_cv["personal"],
+            "education": master_cv["education"],
+            "languages": master_cv["languages"],
+            "interests": "",
+            "rodo_clause": "",
+            "job_language": "pl",
+            "cv_output_language": "pl",
+            "language_confidence": "high",
+            "role_type": "individual_contributor",
+            "role_type_confidence": "high",
+            "role_type_reasoning": "Samodzielna rola.",
+            "cv_emphasis": ["business development"],
+            "ats_keyword_strategy": {
+                "supported_keywords": [], "adjacent_keywords": [],
+                "unsupported_keywords": [], "used_keywords": [],
+                "excluded_keywords": [], "naturalness_notes": "",
+            },
+            "experience_gap_analysis": original_gap,
+        }
+        revised_response = {
+            "summary": "Zaktualizowane podsumowanie.",
+            "competencies": ["Sprzedaż B2B"],
+            "experience": [{"title": "Head of Sales", "dates": "2022 – present", "bullets": ["Scaled pipeline."]}],
+            # no experience_gap_analysis — LLM didn't return it
+        }
+        with mock.patch("src.cv_adapter.chat") as mock_chat:
+            mock_resp = mock.MagicMock()
+            mock_resp.choices[0].message.content = json.dumps(revised_response)
+            mock_chat.return_value = mock_resp
+            result = revise_full_cv(current_cv, "Skróć podsumowanie.", "Ogłoszenie testowe.")
+
+        assert result["experience_gap_analysis"] == original_gap, \
+            "revise_full_cv musi zachować experience_gap_analysis z current_cv gdy LLM go nie zwróci"

@@ -130,6 +130,17 @@ Kontrola jakości (przed zwróceniem JSON, bez chain-of-thought):
 - Przepisz awkward keyword insertions.
 - Upewnij się, że tekst brzmi jak profesjonalne CV dla rekrutera i systemu ATS.
 
+ANALIZA LUK / NIEDOPASOWANIA (experience_gap_analysis):
+Po wygenerowaniu sekcji CV przygotuj krótką analizę luk dla użytkownika. Zawiera:
+- title: tytuł sekcji w języku zgodnym z cv_output_language: dla "en-US" = "Experience gaps vs. job posting", dla "pl" = "Niedopasowanie doświadczenia do ogłoszenia".
+- text: jeden krótki, naturalny akapit (3-6 zdań) opisujący, które wymagania ogłoszenia profil Tomasza spełnia, a których nie potwierdza wprost. Nie krytykuj kandydata. Ton: neutralny, praktyczny, profesjonalny.
+- confirmed_strengths: lista obszarów wyraźnie potwierdzonych w profilu i pasujących do ogłoszenia.
+- gaps: lista wymagań z ogłoszenia, których profil Tomasza nie potwierdza wprost.
+- transferable_angles: lista pokrewnych doświadczeń, które można bezpiecznie zaakcentować jako substytut.
+- do_not_claim: lista elementów, których LLM nie powinien dopisywać jako faktów (bo ich nie ma w profilu bazowym).
+Ta analiza służy tylko użytkownikowi w UI przed wysyłką CV. NIE wstawiaj do sekcji CV (summary, competencies, experience). NIE osłabiaj tekstu CV przez wzmiankę o lukach w treści CV.
+Przy poprawianiu CV (revise_full_cv): zachowaj lub zaktualizuj experience_gap_analysis. Nie zamykaj luk przez wymyslanie niepotwierdzonych doświadczeń.
+
 LIMITY ZNAKÓW (bezwzględne — nie przekraczaj):
 - Podsumowanie zawodowe / Professional Summary: max 900 znaków
 - Lista kompetencji (łącznie wszystkie): max 600 znaków
@@ -194,6 +205,38 @@ def _validate_ats_strategy(adapted: dict) -> dict:
     }
 
 
+def _validate_gap_analysis(adapted: dict, cv_output_language: str = "pl") -> dict:
+    """
+    Validates and normalises the experience_gap_analysis field from LLM response.
+    Returns a safe dict with all expected sub-fields.
+    """
+    default_title = (
+        "Experience gaps vs. job posting"
+        if cv_output_language == "en-US"
+        else "Niedopasowanie doświadczenia do ogłoszenia"
+    )
+    raw = adapted.get("experience_gap_analysis", {})
+    if not isinstance(raw, dict):
+        raw = {}
+
+    def _str(key: str) -> str:
+        v = raw.get(key, "")
+        return v if isinstance(v, str) else ""
+
+    def _list(key: str) -> list:
+        v = raw.get(key, [])
+        return v if isinstance(v, list) else []
+
+    return {
+        "title":               _str("title") or default_title,
+        "text":                _str("text"),
+        "confirmed_strengths": _list("confirmed_strengths"),
+        "gaps":                _list("gaps"),
+        "transferable_angles": _list("transferable_angles"),
+        "do_not_claim":        _list("do_not_claim"),
+    }
+
+
 def _validate_language_fields(adapted: dict) -> tuple[str, str, str]:
     """
     Validates and normalises LLM-returned language fields.
@@ -240,6 +283,14 @@ OUTPUT_SCHEMA = {
         "used_keywords":       "list[string] — keywords actually used in generated sections",
         "excluded_keywords":   "list[string] — important job keywords omitted due to lack of profile support",
         "naturalness_notes":   "string — brief note on how keywords were integrated (1-2 sentences)",
+    },
+    "experience_gap_analysis": {
+        "title":               "string — section title in cv_output_language: 'Experience gaps vs. job posting' (en-US) or 'Niedopasowanie doświadczenia do ogłoszenia' (pl)",
+        "text":                "string — concise paragraph (3-6 sentences) for the user: what is confirmed, what is missing, what can be safely positioned as transferable",
+        "confirmed_strengths": "list[string] — areas clearly confirmed in Tomasz's profile that match the job posting",
+        "gaps":                "list[string] — job posting requirements not directly confirmed in Tomasz's profile",
+        "transferable_angles": "list[string] — adjacent/transferable experience that can safely substitute",
+        "do_not_claim":        "list[string] — items that must not be added to the CV as factual claims",
     },
     "ats_keywords": "list[string] — ATS keywords from job posting matching the CV",
     "match_score": "int 0-100 — match rating",
@@ -332,6 +383,7 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
     job_language, cv_output_language, language_confidence = _validate_language_fields(adapted)
     role_type, role_type_confidence, role_type_reasoning, cv_emphasis = _validate_role_fields(adapted)
     ats_keyword_strategy = _validate_ats_strategy(adapted)
+    gap_analysis = _validate_gap_analysis(adapted, cv_output_language)
 
     result = {
         "personal":             master_cv["personal"],
@@ -349,6 +401,7 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
         "gaps":                 adapted.get("gaps", []),
         "ats_report":           adapted.get("ats_report", {"used": [], "not_used": []}),
         "ats_keyword_strategy": ats_keyword_strategy,
+        "experience_gap_analysis": gap_analysis,
         "company":              adapted.get("company", ""),
         "job_title":            adapted.get("job_title", ""),
         "job_language":         job_language,
@@ -663,4 +716,13 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
         "supported_keywords": [], "adjacent_keywords": [], "unsupported_keywords": [],
         "used_keywords": [], "excluded_keywords": [], "naturalness_notes": "",
     }))
+    # Preserve or update experience_gap_analysis — if LLM returned one, validate it;
+    # otherwise carry forward from current_cv
+    if "experience_gap_analysis" in revised and isinstance(revised["experience_gap_analysis"], dict):
+        result["experience_gap_analysis"] = _validate_gap_analysis(
+            revised, result.get("cv_output_language", "pl")
+        )
+    else:
+        result["experience_gap_analysis"] = current_cv.get("experience_gap_analysis",
+            _validate_gap_analysis({}, result.get("cv_output_language", "pl")))
     return result
