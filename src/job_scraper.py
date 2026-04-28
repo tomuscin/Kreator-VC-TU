@@ -50,30 +50,7 @@ def fetch_job_posting(url: str) -> str:
     except httpx.RequestError as exc:
         raise ValueError(f"Błąd połączenia z {url}: {exc}") from exc
 
-    text = _extract_text(response.text, url)
-
-    # LinkedIn /jobs/view/ links require authentication — scraping returns the
-    # login page, not the actual job description.
-    domain = urlparse(url).netloc.lower()
-    is_linkedin = "linkedin.com" in domain
-    is_linkedin_job = is_linkedin and "/jobs/" in url
-
-    MIN_WORDS = 80
-    word_count = len(text.split())
-
-    if word_count < MIN_WORDS:
-        if is_linkedin_job:
-            raise ValueError(
-                "LinkedIn wymaga zalogowania — automatyczne pobranie treści ogłoszenia nie jest możliwe. "
-                "Otwórz ogłoszenie w przeglądarce, skopiuj całą treść (Ctrl+A → Ctrl+C w sekcji opisu) "
-                "i wklej ją ręcznie w pole tekstowe."
-            )
-        raise ValueError(
-            f"Pobrana treść ogłoszenia jest zbyt krótka ({word_count} słów, minimum {MIN_WORDS}). "
-            "Sprawdź URL lub wklej treść ogłoszenia ręcznie."
-        )
-
-    return text
+    return _extract_text(response.text, url)
 
 
 def _extract_text(html: str, url: str) -> str:
