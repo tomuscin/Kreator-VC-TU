@@ -44,7 +44,7 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
         if not auth.startswith("Basic "):
             return JSONResponse(
                 status_code=401,
-                headers={"WWW-Authenticate": 'Basic realm="Kreator CV — Tomasz Uściński"'},
+                headers={"WWW-Authenticate": 'Basic realm="Kreator CV TU"'},
                 content={"detail": "Authentication required"},
             )
         import base64
@@ -61,7 +61,7 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
         if not ok:
             return JSONResponse(
                 status_code=401,
-                headers={"WWW-Authenticate": 'Basic realm="Kreator CV — Tomasz Uściński"'},
+                headers={"WWW-Authenticate": 'Basic realm="Kreator CV TU"'},
                 content={"detail": "Invalid credentials"},
             )
         return await call_next(request)
