@@ -269,6 +269,7 @@
     <div style="margin-top:20px;">
       <div id="match-score-badge"></div>
       <p id="match-notes" style="margin-top:8px; font-size:0.85rem; color:var(--grey);"></p>
+      <div id="lang-badge" style="margin-top:8px; font-size:0.8rem; color:var(--grey); display:none;"></div>
     </div>
 
     <div class="row" style="margin-top:20px;">
@@ -425,6 +426,23 @@
       document.getElementById('match-score-badge').innerHTML =
         `<span class="match-badge ${cls}">Dopasowanie: ${score}/100</span>`;
       document.getElementById('match-notes').textContent = adaptedCV.match_notes || '';
+
+      // ── Language badge ────────────────────────────────────────────
+      const langBadge = document.getElementById('lang-badge');
+      const jobLang   = adaptedCV.job_language || 'unknown';
+      const cvLang    = adaptedCV.cv_output_language || 'pl';
+      const langConf  = adaptedCV.language_confidence || 'low';
+
+      const jobLangLabel = jobLang === 'en' ? 'English' : jobLang === 'pl' ? 'Polski' : 'nieznany';
+      const cvLangLabel  = cvLang  === 'en-US' ? 'English US' : 'Polski';
+
+      let langHTML = `Język ogłoszenia: <strong>${jobLangLabel}</strong> &nbsp;|&nbsp; Język CV: <strong>${cvLangLabel}</strong>`;
+      if (langConf === 'low') {
+        langHTML += `<br><span style="color:#e07b00;">Nie udało się jednoznacznie wykryć języka ogłoszenia. Domyślnie wygenerowano CV po polsku.</span>`;
+      }
+      langBadge.innerHTML = langHTML;
+      langBadge.style.display = 'block';
+      // ─────────────────────────────────────────────────────────────
 
       if (!document.getElementById('field-job-title').value && adaptedCV.job_title)
         document.getElementById('field-job-title').value = adaptedCV.job_title;

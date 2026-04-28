@@ -91,11 +91,12 @@ class GenerateDocxRequest(BaseModel):
     job_date:    str = ""  # YYYY-MM-DD — publication date of job posting
 
 class ReviseRequest(BaseModel):
-    field_name:   str
-    current_text: str
-    user_comment: str
-    job_posting:  str
-    char_limit:   int
+    field_name:         str
+    current_text:       str
+    user_comment:       str
+    job_posting:        str
+    char_limit:         int
+    cv_output_language: str = "pl"  # preserve CV language during revision
 
 class ReviseCVRequest(BaseModel):
     current_cv:  dict
@@ -215,6 +216,7 @@ async def revise(data: ReviseRequest):
             user_comment=data.user_comment,
             job_posting=data.job_posting,
             char_limit=data.char_limit,
+            cv_output_language=data.cv_output_language,
         )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))

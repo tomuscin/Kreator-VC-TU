@@ -43,37 +43,74 @@ ZASADY (bezwzględne):
 8. Zachowaj profesjonalny, konkretny styl. Unikaj przesadnego marketingowego tonu.
 9. POZYCJONOWANIE KANDYDATA: Tomasz Uściński posiada silne doświadczenie biznesowe, sprzedażowe, founderskie, C-level i w komercjalizacji technologii. Może używać AI, LLM, GitHub, Python, PostgreSQL, Render, Sanity i narzędzi API w praktycznych procesach biznesowych, automatyzacji i prototypowaniu. NIE opisuj go jako senior software engineera, backend developera, ML engineera ani data engineera, chyba że profil bazowy jednoznacznie potwierdza taką rolę. Dla ogłoszeń IT-oriented pozycjonuj go jako lidera biznesowo-technologicznego, praktyka automatyzacji sprzedaży/procesów opartego na AI, operatora komercyjno-produktowego i menadżera skutecznie współpracującego z zespołami technicznymi.
 
+WYKRYWANIE JĘZYKA I JĘZYK WYJŚCIA CV:
+- Przed wygenerowaniem sekcji CV wykryj dominujący język ogłoszenia rekrutacyjnego.
+- Jeśli ogłoszenie jest po angielsku: generuj WSZYSTKIE sekcje CV w naturalnym, profesjonalnym US English. Nie tłumacz dosłownie — przepisz jako naturalne executive CV.
+- Jeśli ogłoszenie jest po polsku: generuj WSZYSTKIE sekcje CV w języku polskim.
+- Jeśli ogłoszenie jest mieszane: użyj języka dominującego.
+- Nie mieszaj polskiego i angielskiego w tej samej sekcji CV.
+- Dla angielskich CV: section_1.name = "Professional Summary", section_2.name = "Key Competencies".
+- Dla polskich CV: section_1.name = "Profil zawodowy", section_2.name = "Kluczowe kompetencje".
+- Zwróć pola: job_language ("pl" | "en" | "unknown"), cv_output_language ("pl" | "en-US"), language_confidence ("high" | "medium" | "low").
+
 LIMITY ZNAKÓW (bezwzględne — nie przekraczaj):
-- Podsumowanie zawodowe: max 900 znaków
+- Podsumowanie zawodowe / Professional Summary: max 900 znaków
 - Lista kompetencji (łącznie wszystkie): max 600 znaków
 - Każdy punkt w doświadczeniu (każde bullet): max 200 znaków
 Jeśli tekst przekroczyłby limit — skróć, zachowując kluczowe informacje i słowa ATS.
 
 Odpowiedź zawsze w formacie JSON, zgodnie ze schematem wyjściowym.
-Język: polski.
 """.strip()
 
+
+# ── Language field validation ─────────────────────────────────────────
+
+def _validate_language_fields(adapted: dict) -> tuple[str, str, str]:
+    """
+    Validates and normalises LLM-returned language fields.
+    Returns (job_language, cv_output_language, language_confidence).
+    """
+    job_lang = adapted.get("job_language", "unknown")
+    cv_lang  = adapted.get("cv_output_language", "pl")
+    conf     = adapted.get("language_confidence", "low")
+
+    if job_lang not in ("pl", "en", "unknown"):
+        job_lang = "unknown"
+    if cv_lang not in ("pl", "en-US"):
+        cv_lang = "pl"
+    if conf not in ("high", "medium", "low"):
+        conf = "low"
+
+    # If language is unknown, force Polish output
+    if job_lang == "unknown":
+        cv_lang = "pl"
+
+    return job_lang, cv_lang, conf
+
 OUTPUT_SCHEMA = {
-    "summary": "string — profil zawodowy (max 900 znaków)",
-    "competencies": "list[string] — lista kompetencji (max 14 pozycji, łącznie max 600 znaków)",
+    "job_language": "\"pl\" | \"en\" | \"unknown\" — dominant language of the job posting",
+    "cv_output_language": "\"pl\" | \"en-US\" — language used for all generated CV sections",
+    "language_confidence": "\"high\" | \"medium\" | \"low\" — confidence in language detection",
+    "summary": "string — profil zawodowy / Professional Summary (max 900 znaków/chars)",
+    "competencies": "list[string] — lista kompetencji / Key Competencies (max 14 items, total max 600 chars)",
     "experience": [
         {
-            "title": "string — bez zmian z matki",
-            "dates": "string — bez zmian z matki",
-            "bullets": "list[string] — każdy punkt max 200 znaków"
+            "title": "string — bez zmian z matki / unchanged from source",
+            "dates": "string — bez zmian z matki / unchanged from source",
+            "bullets": "list[string] — każdy punkt max 200 znaków / each bullet max 200 chars"
         }
     ],
-    "ats_keywords": "list[string] — słowa kluczowe z ogłoszenia pasujące do CV",
-    "match_score": "int 0-100 — ocena dopasowania ogłoszenia do profilu",
-    "match_notes": "string — krótkie uzasadnienie (2-3 zdania)",
-    "covered_requirements": "list[string] — wymagania z ogłoszenia dobrze pokryte przez CV (max 5)",
-    "gaps": "list[string] — czego brakuje lub jest słabo pokryte (max 5)",
+    "ats_keywords": "list[string] — ATS keywords from job posting matching the CV",
+    "match_score": "int 0-100 — match rating",
+    "match_notes": "string — brief justification (2-3 sentences, in cv_output_language)",
+    "covered_requirements": "list[string] — job requirements well covered by CV (max 5)",
+    "gaps": "list[string] — requirements missing or weakly covered (max 5)",
     "ats_report": {
-        "used": [{"keyword": "string", "locations": ["Podsumowanie | Kompetencje | Doświadczenie — {title}"]}],
-        "not_used": [{"keyword": "string", "reason": "string — dlaczego nie użyto"}]
+        "used": [{"keyword": "string", "locations": ["Summary | Competencies | Experience — {title}"]}],
+        "not_used": [{"keyword": "string", "reason": "string"}]
     },
-    "company": "string — nazwa firmy z ogłoszenia (lub '' jeśli brak)",
-    "job_title": "string — stanowisko z ogłoszenia"
+    "company": "string — company name from job posting (or '')",
+    "job_title": "string — job title from job posting"
 }
 
 
@@ -105,15 +142,19 @@ def adapt_cv(job_posting: str, master_cv: dict | None = None) -> dict:
 {job_posting}
 
 ## ZADANIE:
-Dostosuj treść CV Tomasza Uścińskiego do tego ogłoszenia. Zachowaj wszystkie stanowiska, daty i fakty.
-Podkreśl doświadczenia i kompetencje najbardziej relevantne dla tej roli.
-Używaj słów kluczowych z ogłoszenia tam, gdzie naturalnie pasują do realnego doświadczenia.
+1. Wykryj dominujący język ogłoszenia (job_language: "pl" | "en" | "unknown").
+2. Określ język wyjścia CV (cv_output_language: "pl" | "en-US") i pewność detekcji (language_confidence: "high" | "medium" | "low").
+3. Dostosuj treść CV Tomasza Uścińskiego do tego ogłoszenia w wykrytym języku wyjścia.
+   - Jeśli cv_output_language = "en-US": pisz WSZYSTKIE sekcje po angielsku (Professional Summary, Key Competencies, bullets). Nie tłumacz dosłownie — przepisz naturalnym executive English.
+   - Jeśli cv_output_language = "pl": pisz WSZYSTKIE sekcje po polsku.
+4. Zachowaj wszystkie stanowiska, daty i fakty. Podkreśl doświadczenia relevantne dla tej roli.
+5. Używaj słów kluczowych z ogłoszenia tam, gdzie naturalnie pasują do realnego doświadczenia.
 PILNUJ LIMITÓW ZNAKÓW — podsumowanie max 900, kompetencje łącznie max 600, każdy bullet max 200.
 NIE wymyślaj kompetencji, liczb ani osiągnięć spoza profilu bazowego.
 
-Po wygenerowaniu CV, przeanalizuj:
+Po wygenerowaniu CV przeanalizuj:
 - które słowa kluczowe ATS z ogłoszenia znalazły się w CV i gdzie (ats_report.used),
-- których nie użyto i dlaczego — bo nie ma pokrycia w profilu bazowym (ats_report.not_used),
+- których nie użyto i dlaczego (ats_report.not_used),
 - które wymagania z ogłoszenia są dobrze pokryte przez CV (covered_requirements),
 - jakie luki istnieją między ogłoszeniem a profilem (gaps),
 - wyodrębnij nazwę firmy i stanowisko z ogłoszenia.
@@ -139,6 +180,8 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
     except json.JSONDecodeError as exc:
         raise ValueError(f"LLM zwrócił niepoprawny JSON: {exc}\n\nRaw:\n{raw}") from exc
 
+    job_language, cv_output_language, language_confidence = _validate_language_fields(adapted)
+
     result = {
         "personal":             master_cv["personal"],
         "education":            master_cv["education"],
@@ -156,6 +199,9 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
         "ats_report":           adapted.get("ats_report", {"used": [], "not_used": []}),
         "company":              adapted.get("company", ""),
         "job_title":            adapted.get("job_title", ""),
+        "job_language":         job_language,
+        "cv_output_language":   cv_output_language,
+        "language_confidence":  language_confidence,
     }
 
     return result
@@ -180,33 +226,46 @@ def _merge_experience(master_exp: list, adapted_exp: list) -> list:
 
 def analyze_job_posting(job_posting: str) -> dict:
     """
-    Analyzes job posting and extracts key requirements.
+    Analyzes job posting and extracts key requirements, including language detection.
 
     Returns:
         Dict with: required_experience, responsibilities, technologies,
-        ats_keywords, tone, priority_competencies, company, job_title.
+        ats_keywords, tone, priority_competencies, company, job_title,
+        job_language, cv_output_language, language_confidence.
     """
     response = chat(
         messages=[
             {
                 "role": "system",
-                "content": "Jesteś ekspertem HR. Analizujesz ogłoszenia rekrutacyjne. Odpowiadaj w JSON. Język: polski."
+                "content": (
+                    "You are an expert HR analyst. Analyze job postings and return JSON. "
+                    "Always detect the dominant language of the job posting and include "
+                    "job_language, cv_output_language and language_confidence in your response."
+                )
             },
             {
                 "role": "user",
-                "content": f"""Przeanalizuj to ogłoszenie i zwróć JSON:
+                "content": f"""Analyze this job posting and return JSON with the following fields:
 {{
-  "required_experience": ["lista wymagań doświadczeniowych"],
-  "responsibilities": ["lista głównych obowiązków"],
-  "technologies": ["narzędzia, systemy, platformy"],
-  "ats_keywords": ["kluczowe słowa pod ATS"],
-  "tone": "opis tonu ogłoszenia (1 zdanie)",
-  "priority_competencies": ["top 5 kompetencji oczekiwanych przez pracodawcę"],
-  "company": "nazwa firmy (lub '' jeśli brak)",
-  "job_title": "stanowisko z ogłoszenia"
+  "job_language": "pl" | "en" | "unknown",
+  "cv_output_language": "pl" | "en-US",
+  "language_confidence": "high" | "medium" | "low",
+  "required_experience": ["list of experience requirements"],
+  "responsibilities": ["list of main responsibilities"],
+  "technologies": ["tools, systems, platforms"],
+  "ats_keywords": ["key ATS keywords"],
+  "tone": "description of job posting tone (1 sentence)",
+  "priority_competencies": ["top 5 competencies expected by employer"],
+  "company": "company name (or '' if not found)",
+  "job_title": "job title from the posting"
 }}
 
-OGŁOSZENIE:
+Rules for language fields:
+- job_language: dominant language of the job posting text
+- cv_output_language: "en-US" if job_language is "en", "pl" otherwise
+- language_confidence: how confident you are in the language detection
+
+JOB POSTING:
 {job_posting}"""
             }
         ],
@@ -218,9 +277,16 @@ OGŁOSZENIE:
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
 
     try:
-        return json.loads(raw)
+        result = json.loads(raw)
     except json.JSONDecodeError:
-        return {"raw": raw}
+        result = {"raw": raw}
+
+    # Apply language field validation/normalisation
+    job_lang, cv_lang, conf = _validate_language_fields(result)
+    result["job_language"]        = job_lang
+    result["cv_output_language"]  = cv_lang
+    result["language_confidence"] = conf
+    return result
 
 
 def revise_field(
@@ -229,10 +295,26 @@ def revise_field(
     user_comment: str,
     job_posting: str,
     char_limit: int,
+    cv_output_language: str = "pl",
 ) -> str:
     """
     Revises a single CV field based on user comment, respecting char limit.
+    The cv_output_language parameter ensures the revision stays in the same
+    language as the generated CV, regardless of the comment's language.
     """
+    if cv_output_language == "en-US":
+        lang_rule = (
+            "The current CV output language is en-US. "
+            "Revise the text in natural, professional US English. "
+            "Do not switch to Polish even if the user's comment is in Polish."
+        )
+    else:
+        lang_rule = (
+            "Obecny język CV to polski. "
+            "Poprawiaj tekst po polsku. "
+            "Nie zmieniaj języka na angielski, nawet jeśli komentarz użytkownika jest po angielsku."
+        )
+
     response = chat(
         messages=[
             {
@@ -245,7 +327,7 @@ ZASADY:
 - Uwzględnij komentarz użytkownika
 - Nie przekraczaj {char_limit} znaków (BEZWZGLĘDNY LIMIT)
 - Zwróć TYLKO poprawiony tekst, bez komentarza, bez cudzysłowów
-- Język: polski
+- JĘZYK: {lang_rule}
 
 Pole: {field_name}
 Limit znaków: {char_limit}"""
@@ -278,7 +360,25 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
 
     The structure (personal, education, languages) is preserved.
     Only summary, competencies, and experience bullets may change.
+    The cv_output_language from current_cv is preserved — revision language
+    matches the language already used in the CV, not the instruction language.
     """
+    cv_output_language = current_cv.get("cv_output_language", "pl")
+
+    if cv_output_language == "en-US":
+        lang_rule = (
+            "The current CV output language is en-US. "
+            "Revise ALL sections in natural, professional US English. "
+            "Do not switch to Polish even if the user instruction is in Polish. "
+            "Preserve the language unless the user explicitly requests a language change."
+        )
+    else:
+        lang_rule = (
+            "Obecny język CV to polski. "
+            "Poprawiaj WSZYSTKIE sekcje po polsku. "
+            "Nie zmieniaj języka na angielski, nawet jeśli instrukcja użytkownika jest po angielsku. "
+            "Zachowaj język, chyba że użytkownik wyraźnie prosi o zmianę języka."
+        )
     cv_snapshot = {
         "summary":      current_cv.get("summary", ""),
         "competencies": current_cv.get("competencies", []),
@@ -293,13 +393,13 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
     }
 
     schema = {
-        "summary":      "string — poprawione podsumowanie (max 900 znaków)",
-        "competencies": "list[string] — poprawiona lista kompetencji (max 14, łącznie max 600 znaków)",
+        "summary":      "string — poprawione podsumowanie / revised summary (max 900 znaków/chars)",
+        "competencies": "list[string] — poprawiona lista kompetencji / revised competencies (max 14, total max 600 chars)",
         "experience": [
             {
-                "title":   "string — BEZ ZMIAN z wejścia",
-                "dates":   "string — BEZ ZMIAN z wejścia",
-                "bullets": "list[string] — poprawione punkty, każdy max 200 znaków",
+                "title":   "string — BEZ ZMIAN z wejścia / UNCHANGED from input",
+                "dates":   "string — BEZ ZMIAN z wejścia / UNCHANGED from input",
+                "bullets": "list[string] — poprawione punkty / revised bullets, each max 200 chars",
             }
         ],
     }
@@ -320,6 +420,7 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
 - NIE wymyślaj kompetencji ani doświadczeń spoza profilu bazowego
 - Zastosuj instrukcję użytkownika do treści
 - LIMITY: podsumowanie max 900 znaków, kompetencje łącznie max 600, każdy bullet max 200
+- JĘZYK: {lang_rule}
 - Zwróć TYLKO poprawny JSON zgodny ze schematem poniżej:
 {json.dumps(schema, ensure_ascii=False, indent=2)}
 """.strip()
@@ -348,4 +449,8 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
         current_cv.get("experience", []),
         revised.get("experience", []),
     )
+    # Preserve language fields from current CV — revision does not change detected language
+    result.setdefault("job_language",        current_cv.get("job_language", "unknown"))
+    result.setdefault("cv_output_language",  current_cv.get("cv_output_language", "pl"))
+    result.setdefault("language_confidence", current_cv.get("language_confidence", "low"))
     return result

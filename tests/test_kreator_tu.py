@@ -7,6 +7,7 @@ Tests cover:
 - No hallucination beyond base profile
 - Filename generation
 - History storage
+- Language detection and CV output language handling
 """
 
 import json
@@ -64,6 +65,9 @@ def sample_adapted_cv(master_cv) -> dict:
         "ats_report": {"used": [], "not_used": []},
         "company": "Testowa Firma",
         "job_title": "Sales Director",
+        "job_language": "pl",
+        "cv_output_language": "pl",
+        "language_confidence": "high",
     }
 
 
@@ -185,6 +189,9 @@ class TestNoHallucination:
         # Build minimal adapted result manually to test result assembly
         import unittest.mock as mock
         fake_adapted = {
+            "job_language": "pl",
+            "cv_output_language": "pl",
+            "language_confidence": "high",
             "summary": "Krótkie podsumowanie.",
             "competencies": ["Sprzedaż"],
             "experience": [],
@@ -241,3 +248,158 @@ class TestHistory:
         )
         assert history.delete_entry(entry_id) is True
         assert history.get_all() == []
+
+
+# ── Test: language detection ──────────────────────────────────────────
+
+class TestLanguageDetection:
+    """Tests for LLM-based language detection in adapt_cv and validate helpers."""
+
+    def _mock_adapt(self, master_cv, fake_adapted: dict):
+        """Helper: run adapt_cv with a mocked LLM response."""
+        import unittest.mock as mock
+        from src.cv_adapter import adapt_cv
+        with mock.patch("src.cv_adapter.chat") as mock_chat:
+            mock_resp = mock.MagicMock()
+            mock_resp.choices[0].message.content = json.dumps(fake_adapted)
+            mock_chat.return_value = mock_resp
+            return adapt_cv("Sample job posting.", master_cv=master_cv)
+
+    def test_polish_posting_returns_pl(self, master_cv):
+        """Polish job posting: job_language=pl, cv_output_language=pl."""
+        fake = {
+            "job_language": "pl",
+            "cv_output_language": "pl",
+            "language_confidence": "high",
+            "summary": "Podsumowanie po polsku.",
+            "competencies": ["Sprzedaż B2B"],
+            "experience": [],
+            "ats_keywords": [],
+            "match_score": 70,
+            "match_notes": "",
+            "covered_requirements": [],
+            "gaps": [],
+            "ats_report": {"used": [], "not_used": []},
+            "company": "Firma PL",
+            "job_title": "Dyrektor Sprzedaży",
+        }
+        result = self._mock_adapt(master_cv, fake)
+        assert result["job_language"] == "pl"
+        assert result["cv_output_language"] == "pl"
+        assert result["language_confidence"] == "high"
+
+    def test_english_posting_returns_en(self, master_cv):
+        """English job posting: job_language=en, cv_output_language=en-US."""
+        fake = {
+            "job_language": "en",
+            "cv_output_language": "en-US",
+            "language_confidence": "high",
+            "summary": "Experienced sales leader with 15+ years in B2B SaaS.",
+            "competencies": ["B2B Sales", "Revenue Growth"],
+            "experience": [],
+            "ats_keywords": ["sales", "SaaS"],
+            "match_score": 78,
+            "match_notes": "Good match for this commercial role.",
+            "covered_requirements": [],
+            "gaps": [],
+            "ats_report": {"used": [], "not_used": []},
+            "company": "Acme Corp",
+            "job_title": "Head of Sales",
+        }
+        result = self._mock_adapt(master_cv, fake)
+        assert result["job_language"] == "en"
+        assert result["cv_output_language"] == "en-US"
+        assert result["language_confidence"] == "high"
+
+    def test_fallback_when_language_fields_missing(self, master_cv):
+        """If LLM omits language fields, defaults apply: unknown/pl/low."""
+        fake = {
+            # No language fields
+            "summary": "Fallback podsumowanie.",
+            "competencies": ["Sprzedaż"],
+            "experience": [],
+            "ats_keywords": [],
+            "match_score": 40,
+            "match_notes": "",
+            "covered_requirements": [],
+            "gaps": [],
+            "ats_report": {"used": [], "not_used": []},
+            "company": "",
+            "job_title": "",
+        }
+        result = self._mock_adapt(master_cv, fake)
+        assert result["job_language"] == "unknown"
+        assert result["cv_output_language"] == "pl"
+        assert result["language_confidence"] == "low"
+
+    def test_invalid_language_values_normalised(self, master_cv):
+        """Invalid LLM values are sanitised to safe defaults."""
+        fake = {
+            "job_language": "de",        # invalid
+            "cv_output_language": "fr",  # invalid
+            "language_confidence": "very_high",  # invalid
+            "summary": "Summary.",
+            "competencies": ["Sales"],
+            "experience": [],
+            "ats_keywords": [],
+            "match_score": 50,
+            "match_notes": "",
+            "covered_requirements": [],
+            "gaps": [],
+            "ats_report": {"used": [], "not_used": []},
+            "company": "",
+            "job_title": "",
+        }
+        result = self._mock_adapt(master_cv, fake)
+        assert result["job_language"] == "unknown"
+        assert result["cv_output_language"] == "pl"
+        assert result["language_confidence"] == "low"
+
+    def test_validate_language_fields_helper(self):
+        """Unit test for _validate_language_fields() directly."""
+        from src.cv_adapter import _validate_language_fields
+
+        # Valid Polish
+        assert _validate_language_fields({"job_language": "pl", "cv_output_language": "pl", "language_confidence": "high"}) == ("pl", "pl", "high")
+        # Valid English
+        assert _validate_language_fields({"job_language": "en", "cv_output_language": "en-US", "language_confidence": "medium"}) == ("en", "en-US", "medium")
+        # Unknown forces pl output
+        assert _validate_language_fields({"job_language": "unknown", "cv_output_language": "en-US", "language_confidence": "low"}) == ("unknown", "pl", "low")
+        # Missing all → defaults
+        assert _validate_language_fields({}) == ("unknown", "pl", "low")
+        # Invalid values → defaults
+        assert _validate_language_fields({"job_language": "zh", "cv_output_language": "de", "language_confidence": "extreme"}) == ("unknown", "pl", "low")
+
+    def test_revise_full_cv_preserves_language(self, master_cv):
+        """revise_full_cv must keep cv_output_language from current_cv."""
+        import unittest.mock as mock
+        from src.cv_adapter import revise_full_cv
+
+        current_cv = {
+            "summary": "Experienced leader.",
+            "competencies": ["B2B Sales"],
+            "experience": [{"title": "Head of Sales", "dates": "2022 – present", "bullets": ["Led sales team."]}],
+            "personal": master_cv["personal"],
+            "education": master_cv["education"],
+            "languages": master_cv["languages"],
+            "interests": "",
+            "rodo_clause": "",
+            "job_language": "en",
+            "cv_output_language": "en-US",
+            "language_confidence": "high",
+        }
+        revised_response = {
+            "summary": "Dynamic sales leader with proven track record.",
+            "competencies": ["Enterprise Sales"],
+            "experience": [{"title": "Head of Sales", "dates": "2022 – present", "bullets": ["Scaled revenue 2x."]}],
+        }
+        with mock.patch("src.cv_adapter.chat") as mock_chat:
+            mock_resp = mock.MagicMock()
+            mock_resp.choices[0].message.content = json.dumps(revised_response)
+            mock_chat.return_value = mock_resp
+            result = revise_full_cv(current_cv, "Make it more concise.", "English job posting.")
+
+        assert result["cv_output_language"] == "en-US", \
+            "revise_full_cv must preserve cv_output_language from current_cv"
+        assert result["job_language"] == "en"
+        assert result["language_confidence"] == "high"
