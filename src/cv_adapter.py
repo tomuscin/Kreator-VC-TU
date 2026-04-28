@@ -318,6 +318,12 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
 
+    if not raw:
+        raise ValueError(
+            "Model nie zwrócił treści. Sprawdź, czy ogłoszenie zawiera wystarczającą ilość tekstu "
+            "(minimum 100-200 słów). Jeśli korzystasz z linku LinkedIn, wklej treść ogłoszenia ręcznie."
+        )
+
     try:
         adapted = json.loads(raw)
     except json.JSONDecodeError as exc:

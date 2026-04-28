@@ -50,6 +50,16 @@ def fetch_job_posting(url: str) -> str:
     except httpx.RequestError as exc:
         raise ValueError(f"Błąd połączenia z {url}: {exc}") from exc
 
+    # Detect LinkedIn auth wall (redirect to /authwall or /login)
+    final_url = str(response.url)
+    if "linkedin.com" in final_url and (
+        "authwall" in final_url or "/login" in final_url or "/checkpoint" in final_url
+    ):
+        raise ValueError(
+            "LinkedIn wymaga logowania — automatyczne pobieranie treści jest niedostępne. "
+            "Otwórz ogłoszenie w przeglądarce, skopiuj całą treść ogłoszenia i wklej ją w pole tekstowe poniżej."
+        )
+
     return _extract_text(response.text, url)
 
 
@@ -68,13 +78,27 @@ def _extract_text(html: str, url: str) -> str:
     for selector in selectors:
         block = soup.select_one(selector)
         if block:
-            return _clean_text(block.get_text(separator="\n"))
+            text = _clean_text(block.get_text(separator="\n"))
+            if len(text) >= 100:
+                return text
 
     # Fallback: longest <div> / <article> / <section>
     candidates = soup.find_all(["article", "section", "div", "main"])
     if candidates:
         best = max(candidates, key=lambda t: len(t.get_text()))
-        return _clean_text(best.get_text(separator="\n"))
+        text = _clean_text(best.get_text(separator="\n"))
+
+        # Detect LinkedIn auth wall by content markers (fallback safety net)
+        if "linkedin.com" in domain:
+            text_lower = text.lower()
+            if any(marker in text_lower for marker in (
+                "sign in", "join now", "sign up", "authwall", "create an account"
+            )) and len(text) < 2000:
+                raise ValueError(
+                    "LinkedIn wymaga logowania — automatyczne pobieranie treści jest niedostępne. "
+                    "Otwórz ogłoszenie w przeglądarce, skopiuj całą treść ogłoszenia i wklej ją w pole tekstowe poniżej."
+                )
+        return text
 
     return _clean_text(soup.get_text(separator="\n"))
 
