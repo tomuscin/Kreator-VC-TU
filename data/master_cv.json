@@ -1,0 +1,99 @@
+{
+  "_meta": {
+    "source": "Tomasz Uściński — profil zawodowy",
+    "note": "To jest źródło prawdy. LLM NIE może dodawać nowych doświadczeń, stanowisk, liczb, osiągnięć ani certyfikatów. Może jedynie przeakcentować i podkreślić istniejące treści pod kątem wymagań ogłoszenia.",
+    "version": "1.0",
+    "generated": "2026-04-28"
+  },
+
+  "personal": {
+    "name": "Tomasz Uściński",
+    "phone": "+48 787 417 293",
+    "email": "tomasz.uscinski@profitia.pl",
+    "linkedin": "https://www.linkedin.com/in/tomasz-uscinski/"
+  },
+
+  "summary": "UZUPEŁNIJ: Wklej tutaj podsumowanie zawodowe Tomasza (3-5 zdań). Powinno opisywać jego profil zawodowy, specjalizację i główne obszary kompetencji.",
+
+  "competencies": [
+    "UZUPEŁNIJ: lista kompetencji",
+    "Sprzedaż B2B",
+    "Negocjacje",
+    "Zarządzanie klientem",
+    "SaaS / platformy zakupowe",
+    "Outreach i prospecting",
+    "CRM i pipeline management",
+    "GTM strategy",
+    "Prezentacje i demo produktowe"
+  ],
+
+  "education": [
+    {
+      "institution": "UZUPEŁNIJ: uczelnia",
+      "faculty": "UZUPEŁNIJ: wydział / kierunek",
+      "degree": "UZUPEŁNIJ: tytuł"
+    }
+  ],
+
+  "languages": [
+    {
+      "language": "Język angielski",
+      "level": "UZUPEŁNIJ: B2 / C1 / fluent"
+    },
+    {
+      "language": "Język polski",
+      "level": "ojczysty"
+    }
+  ],
+
+  "interests": "UZUPEŁNIJ: obszary zainteresowań (opcjonalnie)",
+
+  "rodo_clause": "Wyrażam zgodę na przetwarzanie moich danych osobowych dla potrzeb niezbędnych do realizacji procesu rekrutacji (zgodnie z ustawą z dnia 10 maja 2018 roku o ochronie danych osobowych (Dz. Ustaw z 2018, poz. 1000) oraz zgodnie z Rozporządzeniem Parlamentu Europejskiego i Rady (UE) 2016/679 z dnia 27 kwietnia 2016 r. w sprawie ochrony osób fizycznych w związku z przetwarzaniem danych osobowych i w sprawie swobodnego przepływu takich danych).",
+
+  "experience": [
+    {
+      "title": "Head of Sales",
+      "company": "Profitia / SpendGuru",
+      "dates": "UZUPEŁNIJ: np. 2022 – nadal",
+      "bullets": [
+        "UZUPEŁNIJ: opis głównych obowiązków i osiągnięć na tym stanowisku",
+        "UZUPEŁNIJ: kolejny punkt",
+        "UZUPEŁNIJ: kolejny punkt"
+      ]
+    },
+    {
+      "title": "UZUPEŁNIJ: poprzednie stanowisko",
+      "company": "UZUPEŁNIJ: firma",
+      "dates": "UZUPEŁNIJ: daty",
+      "bullets": [
+        "UZUPEŁNIJ: opis",
+        "UZUPEŁNIJ: kolejny punkt"
+      ]
+    }
+  ],
+
+  "_profile_context": {
+    "candidate_name": "Tomasz Uściński",
+    "target_roles": [
+      "Head of Sales",
+      "Sales Director",
+      "Commercial Director",
+      "Business Development Director",
+      "Account Executive — Enterprise / SaaS"
+    ],
+    "industries": [
+      "SaaS / B2B software",
+      "Procurement technology",
+      "Sales technology",
+      "UZUPEŁNIJ: dodatkowe branże"
+    ],
+    "preferred_cv_style": "Profesjonalny, konkretny, oparty na wynikach. Bez przesadnego marketingowego tonu. Liczby i fakty tam, gdzie są dostępne w profilu bazowym.",
+    "llm_constraints": [
+      "Nie wymyślaj doświadczenia, kompetencji, narzędzi, branż, liczb, osiągnięć ani certyfikatów, których nie ma w tym profilu bazowym.",
+      "Jeśli ogłoszenie wymaga kompetencji, której profil bazowy nie potwierdza, nie dopisuj jej jako faktu.",
+      "Możesz wskazać kompetencje pokrewne, transferowalne lub sformułować tekst ostrożniej.",
+      "Nie używaj słów kluczowych ATS w sposób wymusony — wstawiaj je tylko tam, gdzie naturalnie pasują do realnego doświadczenia.",
+      "Zachowaj daty, nazwy stanowisk i firm dokładnie z profilu bazowego — bez zmian."
+    ]
+  }
+}
