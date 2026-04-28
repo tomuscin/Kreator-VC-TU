@@ -29,7 +29,13 @@
     "Lead generation & outbound campaigns",
     "Value proposition & ICP development",
     "Team building & cross-functional leadership",
-    "CRM & sales operations"
+    "CRM & sales operations",
+    "B2B business development and client acquisition",
+    "Senior stakeholder and decision-maker engagement",
+    "Consultative selling and value proposition development",
+    "Pipeline ownership and CRM-driven sales process",
+    "Cross-functional cooperation with product, marketing, IT and finance",
+    "Market analysis and AI-assisted outbound sales workflows"
   ],
   "core_competencies": [
     "C-level leadership",
@@ -101,7 +107,8 @@
       "PostgreSQL database concepts for business applications",
       "Sanity CMS concepts for structured content management",
       "API-first thinking in business process automation",
-      "No-code, low-code and code-assisted prototyping"
+      "No-code, low-code and code-assisted prototyping",
+      "AI-assisted outreach workflows"
     ],
     "tools": [
       "OpenAI API",
@@ -266,7 +273,14 @@
       "revenue growth",
       "go-to-market",
       "founder-led sales",
-      "C-level selling"
+      "C-level selling",
+      "client acquisition",
+      "consultative selling",
+      "senior stakeholder engagement",
+      "pipeline ownership",
+      "strategic account development",
+      "AI-assisted outreach",
+      "market analysis"
     ]
   },
   "technology_and_product_profile": {
@@ -288,7 +302,8 @@
       "R&D projects",
       "IT team cooperation",
       "API integrations",
-      "data-driven business"
+      "data-driven business",
+      "digital product commercialization"
     ]
   },
   "preferred_cv_style": {
@@ -362,7 +377,16 @@
     "Brokerage",
     "Private Banking",
     "E-commerce",
-    "Chat-commerce"
+    "Chat-commerce",
+    "Senior Client Partner",
+    "Client Acquisition",
+    "Consultative Selling",
+    "Value Proposition",
+    "Strategic Account Development",
+    "Pipeline Management",
+    "Cross-Functional Leadership",
+    "Sales Targets",
+    "AI-Assisted Outreach"
   ],
   "_profile_context": {
     "candidate_name": "Tomasz Uściński",
@@ -380,7 +404,8 @@
       "B2B Sales & GTM Consultant",
       "Procurement Technology / SaaS Sales Leader",
       "AI-enabled Sales Automation / Outreach Lead",
-      "Sales Operations / Revenue Operations Lead"
+      "Sales Operations / Revenue Operations Lead",
+      "Senior Client Partner"
     ],
     "industries": [
       "FinTech",
