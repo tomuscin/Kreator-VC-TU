@@ -1367,3 +1367,85 @@ class TestDocxLocalization:
             assert "Język angielski" in text
             assert "Język polski" in text
             assert "ojczysty" in text
+
+    # ── Contact header: LinkedIn and website ──────────────────────────
+
+    def test_contact_header_en_no_polish_labels(self, master_cv):
+        """English DOCX must NOT contain 'Mój LinkedIn' or 'Moja strona'."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_contact_en.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "Mój LinkedIn" not in text, "DOCX EN nie może zawierać 'Mój LinkedIn'"
+            assert "Moja strona" not in text,  "DOCX EN nie może zawierać 'Moja strona'"
+
+    def test_contact_header_en_contains_linkedin(self, master_cv):
+        """English DOCX must contain LinkedIn label and the shortened URL."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_contact_linkedin_en.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "LinkedIn" in text, "DOCX EN musi zawierać 'LinkedIn'"
+            assert "linkedin.com/in/uscinski" in text, \
+                "DOCX EN musi zawierać 'linkedin.com/in/uscinski'"
+
+    def test_contact_header_en_contains_website(self, master_cv):
+        """English DOCX must contain the website domain."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_contact_website_en.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "tomaszuscinski.pl" in text, \
+                "DOCX EN musi zawierać 'tomaszuscinski.pl'"
+
+    def test_contact_header_pl_no_polish_labels(self, master_cv):
+        """Polish DOCX must also NOT contain 'Mój LinkedIn'."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "pl")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_contact_pl.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "Mój LinkedIn" not in text, "DOCX PL nie może zawierać 'Mój LinkedIn'"
+
+    def test_contact_header_pl_contains_linkedin_and_website(self, master_cv):
+        """Polish DOCX must contain LinkedIn URL and website."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "pl")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_contact_pl_links.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "linkedin.com/in/uscinski" in text, \
+                "DOCX PL musi zawierać 'linkedin.com/in/uscinski'"
+            assert "tomaszuscinski.pl" in text, \
+                "DOCX PL musi zawierać 'tomaszuscinski.pl'"
+
+    # ── index.html: gap analysis title fallback ───────────────────────
+
+    def test_index_html_gap_fallback_en(self):
+        """index.html must contain fallback for 'Experience gaps vs. job posting'."""
+        html = Path("static/index.html").read_text(encoding="utf-8")
+        assert "Experience gaps vs. job posting" in html, \
+            "index.html musi zawierać fallback 'Experience gaps vs. job posting'"
+
+    def test_index_html_gap_fallback_pl(self):
+        """index.html must contain fallback 'Niedopasowanie doświadczenia do ogłoszenia'."""
+        html = Path("static/index.html").read_text(encoding="utf-8")
+        assert "Niedopasowanie doświadczenia do og" in html, \
+            "index.html musi zawierać fallback 'Niedopasowanie doświadczenia do ogłoszenia'"
+
+    def test_index_html_no_xperience_typo(self):
+        """index.html must not contain the typo 'xperience gaps' as a bare hardcoded string."""
+        html = Path("static/index.html").read_text(encoding="utf-8")
+        # Acceptable: 'xperience' inside startsWith guard. Reject as standalone literal.
+        import re
+        bare_typo = re.findall(r"['\"`]xperience gaps", html, re.IGNORECASE)
+        assert not bare_typo, \
+            f"index.html zawiera literówkę 'xperience gaps' jako literal: {bare_typo}"

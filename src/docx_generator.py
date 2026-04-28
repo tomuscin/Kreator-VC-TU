@@ -1,7 +1,7 @@
 """
 DOCX generator for Kreator CV — Tomasz Uściński.
 Generates a clean, professional Word document from adapted CV data.
-LinkedIn URL is read from cv_data["personal"]["linkedin"] if present.
+Contact header: Phone | Email | LinkedIn: linkedin.com/in/... | website.pl
 """
 
 from pathlib import Path
@@ -63,20 +63,41 @@ def _build_doc(cv_data: dict) -> Document:
     run.font.color.rgb = COLOR_ACCENT
     run.font.name = FONT_NAME
 
-    contact = f"{cv_data['personal']['phone']}  |  {cv_data['personal']['email']}"
+    # ── Contact line ────────────────────────────────────────────────
+    # Build: Phone | Email | LinkedIn: linkedin.com/in/... | website.pl
+    personal = cv_data["personal"]
+    contact_parts = [personal["phone"], personal["email"]]
+
+    linkedin_url = personal.get("linkedin", "")
+    linkedin_display = ""
+    if linkedin_url:
+        # Shorten https://www.linkedin.com/in/uscinski/ → linkedin.com/in/uscinski
+        linkedin_display = (
+            linkedin_url
+            .removeprefix("https://www.")
+            .removeprefix("https://")
+            .rstrip("/")
+        )
+        contact_parts.append(f"LinkedIn: {linkedin_display}")
+
+    website_url = personal.get("website", "")
+    website_display = ""
+    if website_url:
+        # Shorten https://tomaszuscinski.pl/ → tomaszuscinski.pl
+        website_display = (
+            website_url
+            .removeprefix("https://www.")
+            .removeprefix("https://")
+            .rstrip("/")
+        )
+        contact_parts.append(website_display)
+
     p2 = doc.add_paragraph()
     p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r2 = p2.add_run(contact)
+    r2 = p2.add_run("  |  ".join(contact_parts))
     r2.font.size = Pt(10)
     r2.font.color.rgb = COLOR_LIGHT
     r2.font.name = FONT_NAME
-
-    # LinkedIn link — read from personal section if present
-    linkedin_url = cv_data["personal"].get("linkedin", "")
-    if linkedin_url:
-        p3 = doc.add_paragraph()
-        p3.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        _add_hyperlink(p3, "Mój LinkedIn", linkedin_url, Pt(10))
 
     _add_divider(doc)
 

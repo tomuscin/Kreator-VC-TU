@@ -505,7 +505,22 @@
       // ── Gap analysis badge ─────────────────────────────────────────────
       const gapBadge = document.getElementById('gap-analysis-badge');
       const gapAnalysis = adaptedCV.experience_gap_analysis || {};
-      const gapTitle = gapAnalysis.title || '';
+      const cvLangForGap = adaptedCV.cv_output_language || 'pl';
+      const _gapFallbackTitle = cvLangForGap === 'en-US'
+        ? 'Experience gaps vs. job posting'
+        : 'Niedopasowanie doświadczenia do ogłoszenia';
+      // Sanitise title: reject empty or clearly truncated values (e.g. missing first letter)
+      const _rawGapTitle = gapAnalysis.title || '';
+      const gapTitle = (_rawGapTitle && _rawGapTitle.toLowerCase().startsWith('exp'))
+        ? _rawGapTitle
+        : (_rawGapTitle && !_rawGapTitle.toLowerCase().startsWith('e'))
+          ? _rawGapTitle
+          : _gapFallbackTitle;
+      // Simpler: always use fallback if title doesn't start with correct first letter
+      const gapTitleSafe = (
+        _rawGapTitle.toLowerCase().startsWith('experience') ||
+        _rawGapTitle.toLowerCase().startsWith('niedopasowanie')
+      ) ? _rawGapTitle : _gapFallbackTitle;
       const gapText  = gapAnalysis.text  || '';
       const gapConfirmed     = gapAnalysis.confirmed_strengths || [];
       const gapGaps          = gapAnalysis.gaps || [];
@@ -514,8 +529,8 @@
 
       if (gapText || gapGaps.length > 0) {
         let gapHTML = `<div style="border-left:3px solid #e07b00; padding:8px 12px; background:#fff8f0; border-radius:0 8px 8px 0;">`;
-        if (gapTitle) {
-          gapHTML += `<div style="font-weight:600; color:#b05000; margin-bottom:6px;">${gapTitle}</div>`;
+        if (gapTitleSafe) {
+          gapHTML += `<div style="font-weight:600; color:#b05000; margin-bottom:6px;">${gapTitleSafe}</div>`;
         }
         if (gapText) {
           gapHTML += `<div style="color:#4a3000; line-height:1.5;">${gapText}</div>`;
