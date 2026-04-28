@@ -331,9 +331,14 @@ def adapt_cv(job_posting: str, master_cv: dict | None = None) -> dict:
         with open(MASTER_CV_PATH, encoding="utf-8") as f:
             master_cv = json.load(f)
 
+    # Strip fields used only for DOCX rendering — LLM doesn't need them
+    # This reduces input token count significantly
+    _DOCX_ONLY_FIELDS = ("fixed_experience_facts", "rodo_clause_en")
+    master_cv_for_llm = {k: v for k, v in master_cv.items() if k not in _DOCX_ONLY_FIELDS}
+
     user_message = f"""
 ## PROFIL KANDYDATA — TOMASZ UŚCIŃSKI (źródło prawdy — nie modyfikuj struktury):
-{json.dumps(master_cv, ensure_ascii=False, indent=2)}
+{json.dumps(master_cv_for_llm, ensure_ascii=False, indent=2)}
 
 ## OGŁOSZENIE REKRUTACYJNE:
 {job_posting}
@@ -367,17 +372,17 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
-        max_completion_tokens=5000,
+        max_completion_tokens=8000,
     )
 
-    raw = response.choices[0].message.content.strip()
+    raw = (response.choices[0].message.content or "").strip()
     if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
     if not raw:
         raise ValueError(
-            "Model nie zwrócił treści. Sprawdź, czy ogłoszenie zawiera wystarczającą ilość tekstu "
-            "(minimum 100-200 słów). Jeśli korzystasz z linku LinkedIn, wklej treść ogłoszenia ręcznie."
+            "Model nie zwrócił treści. Spróbuj ponownie — jeśli błąd się powtarza, "
+            "sprawdź czy ogłoszenie zawiera co najmniej 100-200 słów."
         )
 
     try:
@@ -695,9 +700,9 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
         max_completion_tokens=4000,
     )
 
-    raw = response.choices[0].message.content.strip()
+    raw = (response.choices[0].message.content or "").strip()
     if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
     try:
         revised = json.loads(raw)
