@@ -72,6 +72,14 @@ def sample_adapted_cv(master_cv) -> dict:
         "role_type_confidence": "high",
         "role_type_reasoning": "Stanowisko Head of Sales z odpowiedzialnością za zespół.",
         "cv_emphasis": ["leadership", "team management", "revenue growth"],
+        "ats_keyword_strategy": {
+            "supported_keywords": ["sprzedaż B2B", "SaaS"],
+            "adjacent_keywords": ["CRM"],
+            "unsupported_keywords": ["Salesforce"],
+            "used_keywords": ["sprzedaż B2B", "SaaS"],
+            "excluded_keywords": ["Salesforce"],
+            "naturalness_notes": "Słowa kluczowe wplecione w profil zawodowy.",
+        },
     }
 
 
@@ -200,6 +208,14 @@ class TestNoHallucination:
             "role_type_confidence": "high",
             "role_type_reasoning": "Samodzielna rola sprzedażowa.",
             "cv_emphasis": ["business development"],
+            "ats_keyword_strategy": {
+                "supported_keywords": ["sprzedaż"],
+                "adjacent_keywords": [],
+                "unsupported_keywords": [],
+                "used_keywords": ["sprzedaż"],
+                "excluded_keywords": [],
+                "naturalness_notes": "Naturalnie użyte.",
+            },
             "summary": "Krótkie podsumowanie.",
             "competencies": ["Sprzedaż"],
             "experience": [],
@@ -588,3 +604,199 @@ class TestRoleTypeDetection:
             "revise_full_cv musi zachować role_type z current_cv"
         assert result["cv_emphasis"] == ["leadership", "team management"]
         assert result["role_type_reasoning"] == "Rola kierownicza."
+
+
+# ── Test: ATS keyword strategy ────────────────────────────────────────
+
+class TestATSKeywordStrategy:
+    """Tests for natural ATS keyword strategy in adapt_cv and revise_full_cv."""
+
+    _EMPTY_STRAT = {
+        "supported_keywords": [],
+        "adjacent_keywords": [],
+        "unsupported_keywords": [],
+        "used_keywords": [],
+        "excluded_keywords": [],
+        "naturalness_notes": "",
+    }
+
+    def _mock_adapt(self, master_cv, fake_adapted: dict):
+        import unittest.mock as mock
+        from src.cv_adapter import adapt_cv
+        with mock.patch("src.cv_adapter.chat") as mock_chat:
+            mock_resp = mock.MagicMock()
+            mock_resp.choices[0].message.content = json.dumps(fake_adapted)
+            mock_chat.return_value = mock_resp
+            return adapt_cv("Sample job posting.", master_cv=master_cv)
+
+    def _base_fake(self, **overrides) -> dict:
+        base = {
+            "job_language": "pl",
+            "cv_output_language": "pl",
+            "language_confidence": "high",
+            "role_type": "individual_contributor",
+            "role_type_confidence": "high",
+            "role_type_reasoning": "Samodzielna rola.",
+            "cv_emphasis": ["business development"],
+            "summary": "Podsumowanie.",
+            "competencies": ["Sprzedaż B2B"],
+            "experience": [],
+            "ats_keywords": [],
+            "match_score": 70,
+            "match_notes": "",
+            "covered_requirements": [],
+            "gaps": [],
+            "ats_report": {"used": [], "not_used": []},
+            "company": "Firma",
+            "job_title": "BDM",
+        }
+        base.update(overrides)
+        return base
+
+    def test_ats_strategy_present_in_result(self, master_cv):
+        """adapt_cv result always contains ats_keyword_strategy dict."""
+        fake = self._base_fake(ats_keyword_strategy={
+            "supported_keywords": ["B2B sales", "SaaS"],
+            "adjacent_keywords": ["CRM"],
+            "unsupported_keywords": ["Salesforce"],
+            "used_keywords": ["B2B sales", "SaaS"],
+            "excluded_keywords": ["Salesforce"],
+            "naturalness_notes": "Keywords woven into summary sentences.",
+        })
+        result = self._mock_adapt(master_cv, fake)
+        strat = result["ats_keyword_strategy"]
+        assert isinstance(strat, dict)
+        assert strat["used_keywords"] == ["B2B sales", "SaaS"]
+        assert strat["excluded_keywords"] == ["Salesforce"]
+        assert strat["naturalness_notes"] == "Keywords woven into summary sentences."
+
+    def test_missing_ats_strategy_does_not_break(self, master_cv):
+        """If LLM omits ats_keyword_strategy, result gets safe empty defaults."""
+        fake = self._base_fake()  # no ats_keyword_strategy
+        result = self._mock_adapt(master_cv, fake)
+        strat = result["ats_keyword_strategy"]
+        assert isinstance(strat, dict)
+        assert strat["used_keywords"] == []
+        assert strat["excluded_keywords"] == []
+        assert strat["naturalness_notes"] == ""
+
+    def test_invalid_ats_strategy_normalised(self, master_cv):
+        """Non-dict ats_keyword_strategy is replaced with safe defaults."""
+        fake = self._base_fake(ats_keyword_strategy="not_a_dict")
+        result = self._mock_adapt(master_cv, fake)
+        strat = result["ats_keyword_strategy"]
+        assert isinstance(strat, dict)
+        assert strat["used_keywords"] == []
+
+    def test_used_keywords_is_list(self, master_cv):
+        """used_keywords must always be a list."""
+        fake = self._base_fake(ats_keyword_strategy={
+            "used_keywords": "B2B sales",  # string instead of list
+            "excluded_keywords": None,
+            "naturalness_notes": "",
+        })
+        result = self._mock_adapt(master_cv, fake)
+        strat = result["ats_keyword_strategy"]
+        assert isinstance(strat["used_keywords"], list)
+        assert isinstance(strat["excluded_keywords"], list)
+
+    def test_naturalness_notes_is_string(self, master_cv):
+        """naturalness_notes must always be a string."""
+        fake = self._base_fake(ats_keyword_strategy={
+            "naturalness_notes": 42,  # wrong type
+        })
+        result = self._mock_adapt(master_cv, fake)
+        assert isinstance(result["ats_keyword_strategy"]["naturalness_notes"], str)
+
+    def test_validate_ats_strategy_helper(self):
+        """Unit test for _validate_ats_strategy() directly."""
+        from src.cv_adapter import _validate_ats_strategy
+
+        # Full valid input
+        strat = _validate_ats_strategy({
+            "ats_keyword_strategy": {
+                "supported_keywords": ["B2B sales"],
+                "adjacent_keywords": ["CRM"],
+                "unsupported_keywords": ["Salesforce"],
+                "used_keywords": ["B2B sales"],
+                "excluded_keywords": ["Salesforce"],
+                "naturalness_notes": "Good fit.",
+            }
+        })
+        assert strat["supported_keywords"] == ["B2B sales"]
+        assert strat["used_keywords"] == ["B2B sales"]
+        assert strat["naturalness_notes"] == "Good fit."
+
+        # Missing entirely → all empty
+        strat_empty = _validate_ats_strategy({})
+        assert strat_empty["used_keywords"] == []
+        assert strat_empty["naturalness_notes"] == ""
+
+        # Invalid type for list fields → empty lists
+        strat_bad = _validate_ats_strategy({"ats_keyword_strategy": {
+            "used_keywords": "string_not_list",
+            "naturalness_notes": 99,
+        }})
+        assert strat_bad["used_keywords"] == []
+        assert strat_bad["naturalness_notes"] == ""
+
+    def test_revise_full_cv_preserves_ats_strategy(self, master_cv):
+        """revise_full_cv must preserve ats_keyword_strategy from current_cv."""
+        import unittest.mock as mock
+        from src.cv_adapter import revise_full_cv
+
+        original_strat = {
+            "supported_keywords": ["sprzedaż B2B"],
+            "adjacent_keywords": [],
+            "unsupported_keywords": ["Salesforce"],
+            "used_keywords": ["sprzedaż B2B"],
+            "excluded_keywords": ["Salesforce"],
+            "naturalness_notes": "Słowa kluczowe naturalne.",
+        }
+        current_cv = {
+            "summary": "Podsumowanie.",
+            "competencies": ["Sprzedaż B2B"],
+            "experience": [{"title": "Head of Sales", "dates": "2022 – present", "bullets": ["Led team."]}],
+            "personal": master_cv["personal"],
+            "education": master_cv["education"],
+            "languages": master_cv["languages"],
+            "interests": "",
+            "rodo_clause": "",
+            "job_language": "pl",
+            "cv_output_language": "pl",
+            "language_confidence": "high",
+            "role_type": "sales_leadership",
+            "role_type_confidence": "high",
+            "role_type_reasoning": "Rola kierownicza.",
+            "cv_emphasis": ["leadership"],
+            "ats_keyword_strategy": original_strat,
+        }
+        revised_response = {
+            "summary": "Zmienione podsumowanie.",
+            "competencies": ["Strategia sprzedaży"],
+            "experience": [{"title": "Head of Sales", "dates": "2022 – present", "bullets": ["Scaled revenue."]}],
+        }
+        with mock.patch("src.cv_adapter.chat") as mock_chat:
+            mock_resp = mock.MagicMock()
+            mock_resp.choices[0].message.content = json.dumps(revised_response)
+            mock_chat.return_value = mock_resp
+            result = revise_full_cv(current_cv, "Skróć.", "Ogłoszenie.")
+
+        assert result["ats_keyword_strategy"] == original_strat, \
+            "revise_full_cv musi zachować ats_keyword_strategy z current_cv"
+
+    def test_no_hidden_keyword_instructions_in_system_prompt(self):
+        """SYSTEM_PROMPT must not contain instructions for hidden/invisible keywords."""
+        from src.cv_adapter import SYSTEM_PROMPT
+        forbidden = [
+            "hidden keyword",
+            "invisible keyword",
+            "white text",
+            "white-colored",
+            "microscopic",
+            "keyword stuffing allowed",
+        ]
+        prompt_lower = SYSTEM_PROMPT.lower()
+        for phrase in forbidden:
+            assert phrase.lower() not in prompt_lower, \
+                f"SYSTEM_PROMPT zawiera niedozwoloną frazę: '{phrase}'"

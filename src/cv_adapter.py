@@ -86,6 +86,50 @@ Nie wymyślaj doświadczenia — używaj wyłącznie potwierdzonego profilu bazo
 
 Zwróć pola: role_type ("individual_contributor" | "sales_leadership" | "mixed" | "unknown"), role_type_confidence ("high" | "medium" | "low"), role_type_reasoning (krótkie wyjaśnienie, 1-2 zdania), cv_emphasis (lista akcentów wybranych do CV, max 8 pozycji).
 
+NATURALNA OPTYMALIZACJA ATS — BEZWZGLĘDNE ZASADY:
+Używaj słów kluczowych z ogłoszenia naturalnie i widocznie w sekcjach CV. Obowiązuje bezwzględny zakaz:
+- ukrytych, niewidzialnych ani białych słów kluczowych,
+- mikroskopijnego tekstu,
+- słów kluczowych tylko w metadanych,
+- keyword stuffingu (nadmiernego powtarzania).
+
+Przed wygenerowaniem sekcji CV sklasyfikuj słowa kluczowe z ogłoszenia:
+- "supported": wyraźnie potwierdzone w profilu Tomasza,
+- "adjacent": nie wprost potwierdzone, ale powiązane z jego doświadczeniem,
+- "unsupported": niepotwierdzone — NIE używaj jako faktu.
+
+Używaj słów kluczowych tylko jeśli:
+- brzmią naturalnie w zdaniu,
+- wynikają z realnego doświadczenia,
+- nie tworzą listy SEO/ATS spam,
+- są widoczne w normalnym tekście CV.
+
+Dla "Professional Summary" / "Profil zawodowy": wplataj słowa kluczowe w płynne zdania.
+Dla "Key Competencies" / "Kluczowe kompetencje": używaj zwartych fraz kompetencyjnych — bez przeładowanych łańcuchów keywordów.
+
+Dopasowanie języka CV a słowa kluczowe:
+- cv_output_language = "pl": naturalna polszczyzna; angielskie nazwy narzędzi i stanowisk możesz zachować; unikaj mieszania bez potrzeby.
+- cv_output_language = "en-US": naturalny executive English; stosuj terminy jak: sales leadership, business development, go-to-market, revenue growth, client acquisition, sales operations, AI-enabled outreach, SaaS, FinTech, InsurTech — tylko gdy pasują do ogłoszenia.
+
+Dopasowanie do typu roli a słowa kluczowe:
+- individual_contributor: naturalnie wzmacniaj frazy: business development, client acquisition, consultative selling, decision-maker engagement, outbound campaigns, relationship building, pipeline ownership, ICP/account research, AI/LLM-assisted outreach, Apollo, sales execution.
+- sales_leadership: naturalnie wzmacniaj frazy: sales leadership, team management, hiring, coaching, sales strategy, go-to-market, revenue growth, P&L, sales budgets, KPI management, sales operations, pipeline management, cross-functional leadership.
+- mixed: stosuj oba zestawy bez przeciążania tekstu.
+
+Zwróć pole ats_keyword_strategy z polami:
+- supported_keywords: potwierdzone w profilu
+- adjacent_keywords: powiązane, ale nie wprost potwierdzone
+- unsupported_keywords: pominięte — brak potwierdzenia
+- used_keywords: faktycznie użyte w wygenerowanych sekcjach
+- excluded_keywords: ważne, lecz pominięte z powodu braku potwierdzenia
+- naturalness_notes: krótki opis (1-2 zdania) jak słowa kluczowe zostały wplecione
+
+Kontrola jakości (przed zwróceniem JSON, bez chain-of-thought):
+- Usuń keyword stuffing.
+- Usuń nieudokumentowane twierdzenia.
+- Przepisz awkward keyword insertions.
+- Upewnij się, że tekst brzmi jak profesjonalne CV dla rekrutera i systemu ATS.
+
 LIMITY ZNAKÓW (bezwzględne — nie przekraczaj):
 - Podsumowanie zawodowe / Professional Summary: max 900 znaków
 - Lista kompetencji (łącznie wszystkie): max 600 znaków
@@ -121,6 +165,33 @@ def _validate_role_fields(adapted: dict) -> tuple[str, str, str, list]:
         rt_reason = ""
 
     return role_type, rt_conf, rt_reason, cv_emphasis
+
+
+def _validate_ats_strategy(adapted: dict) -> dict:
+    """
+    Validates and normalises the ats_keyword_strategy field from LLM response.
+    Returns a safe dict with all expected sub-fields.
+    """
+    raw = adapted.get("ats_keyword_strategy", {})
+    if not isinstance(raw, dict):
+        raw = {}
+
+    def _list(key: str) -> list:
+        v = raw.get(key, [])
+        return v if isinstance(v, list) else []
+
+    def _str(key: str) -> str:
+        v = raw.get(key, "")
+        return v if isinstance(v, str) else ""
+
+    return {
+        "supported_keywords":  _list("supported_keywords"),
+        "adjacent_keywords":   _list("adjacent_keywords"),
+        "unsupported_keywords": _list("unsupported_keywords"),
+        "used_keywords":       _list("used_keywords"),
+        "excluded_keywords":   _list("excluded_keywords"),
+        "naturalness_notes":   _str("naturalness_notes"),
+    }
 
 
 def _validate_language_fields(adapted: dict) -> tuple[str, str, str]:
@@ -162,6 +233,14 @@ OUTPUT_SCHEMA = {
             "bullets": "list[string] — każdy punkt max 200 znaków / each bullet max 200 chars"
         }
     ],
+    "ats_keyword_strategy": {
+        "supported_keywords":  "list[string] — keywords clearly supported by Tomasz's profile",
+        "adjacent_keywords":   "list[string] — keywords related but not directly confirmed",
+        "unsupported_keywords": "list[string] — keywords not supported — omit as factual claims",
+        "used_keywords":       "list[string] — keywords actually used in generated sections",
+        "excluded_keywords":   "list[string] — important job keywords omitted due to lack of profile support",
+        "naturalness_notes":   "string — brief note on how keywords were integrated (1-2 sentences)",
+    },
     "ats_keywords": "list[string] — ATS keywords from job posting matching the CV",
     "match_score": "int 0-100 — match rating",
     "match_notes": "string — brief justification (2-3 sentences, in cv_output_language)",
@@ -207,15 +286,16 @@ def adapt_cv(job_posting: str, master_cv: dict | None = None) -> dict:
 1. Wykryj dominujący język ogłoszenia (job_language: "pl" | "en" | "unknown").
 2. Określ język wyjścia CV (cv_output_language: "pl" | "en-US") i pewność detekcji (language_confidence: "high" | "medium" | "low").
 3. Sklasyfikuj typ stanowiska (role_type: "individual_contributor" | "sales_leadership" | "mixed" | "unknown"), pewność klasyfikacji (role_type_confidence: "high" | "medium" | "low"), krótkie uzasadnienie (role_type_reasoning, 1-2 zdania) i wybierz akcenty CV (cv_emphasis: lista max 8 pozycji).
-4. Dostosuj treść CV Tomasza Uścińskiego do tego ogłoszenia w wykrytym języku wyjścia, akcentując kwalifikacje odpowiednie do sklasyfikowanego typu roli zgodnie z regułami SYSTEM_PROMPT.
+4. Sklasyfikuj słowa kluczowe ATS z ogłoszenia jako: supported / adjacent / unsupported (per zasady SYSTEM_PROMPT). Zapisz wyniki w ats_keyword_strategy.
+5. Dostosuj treść CV Tomasza Uścińskiego do tego ogłoszenia w wykrytym języku wyjścia, akcentując kwalifikacje odpowiednie do sklasyfikowanego typu roli. Używaj słów kluczowych naturalnie i widocznie w tekście — nie dodawaj ukrytych, białych ani mikroskopijnych słów kluczowych.
    - Jeśli cv_output_language = "en-US": pisz WSZYSTKIE sekcje po angielsku (Professional Summary, Key Competencies, bullets). Nie tłumacz dosłownie — przepisz naturalnym executive English.
    - Jeśli cv_output_language = "pl": pisz WSZYSTKIE sekcje po polsku.
-5. Zachowaj wszystkie stanowiska, daty i fakty. Podkreśl doświadczenia relevantne dla tej roli.
-6. Używaj słów kluczowych z ogłoszenia tam, gdzie naturalnie pasują do realnego doświadczenia.
+6. Zachowaj wszystkie stanowiska, daty i fakty. Podkreśl doświadczenia relevantne dla tej roli.
+7. Po wygenerowaniu sekcji CV wykonaj cichą kontrolę jakości: usuń keyword stuffing, usuń nieudokumentowane twierdzenia, przepisz awkward insertions — bez chain-of-thought. Zwróć tylko finalny JSON.
 PILNUJ LIMITÓW ZNAKÓW — podsumowanie max 900, kompetencje łącznie max 600, każdy bullet max 200.
 NIE wymyślaj kompetencji, liczb ani osiągnięć spoza profilu bazowego.
 
-Po wygenerowaniu CV przeanalizuj:
+Po wygenerowaniu CV uzupełnij ats_keyword_strategy oraz przeanalizuj:
 - które słowa kluczowe ATS z ogłoszenia znalazły się w CV i gdzie (ats_report.used),
 - których nie użyto i dlaczego (ats_report.not_used),
 - które wymagania z ogłoszenia są dobrze pokryte przez CV (covered_requirements),
@@ -245,6 +325,7 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
 
     job_language, cv_output_language, language_confidence = _validate_language_fields(adapted)
     role_type, role_type_confidence, role_type_reasoning, cv_emphasis = _validate_role_fields(adapted)
+    ats_keyword_strategy = _validate_ats_strategy(adapted)
 
     result = {
         "personal":             master_cv["personal"],
@@ -261,6 +342,7 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
         "covered_requirements": adapted.get("covered_requirements", []),
         "gaps":                 adapted.get("gaps", []),
         "ats_report":           adapted.get("ats_report", {"used": [], "not_used": []}),
+        "ats_keyword_strategy": ats_keyword_strategy,
         "company":              adapted.get("company", ""),
         "job_title":            adapted.get("job_title", ""),
         "job_language":         job_language,
@@ -413,6 +495,7 @@ ZASADY:
 - Nie przekraczaj {char_limit} znaków (BEZWZGLĘDNY LIMIT)
 - Zwróć TYLKO poprawiony tekst, bez komentarza, bez cudzysłowów
 - JĘZYK: {lang_rule}
+- ATS: używaj słów kluczowych z ogłoszenia naturalnie i widocznie. Nie dodawaj ukrytych, białych ani mikroskopijnych słów kluczowych. Jeśli użytkownik prosi o keyword, którego profil bazowy nie potwierdza, pomin go lub użyj powiązanego pojęcia bez twierdzenia o bezpośredniej ekspertyzie.
 
 Pole: {field_name}
 Limit znaków: {char_limit}"""
@@ -533,6 +616,7 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
 - LIMITY: podsumowanie max 900 znaków, kompetencje łącznie max 600, każdy bullet max 200
 - JĘZYK: {lang_rule}
 - AKCENTY CV: {role_rule}
+- ATS: zachowaj naturalną optymalizację ATS przez widoczne i wiarygodne słownictwo. Nie dodawaj ukrytych keywordów. Jeśli użytkownik prosi o keyword, którego profil bazowy nie potwierdza, pomin go lub użyj powiązanego wyrażenia bez twierdzenia o bezpośredniej ekspertyzie.
 - Zwróć TYLKO poprawny JSON zgodny ze schematem poniżej:
 {json.dumps(schema, ensure_ascii=False, indent=2)}
 """.strip()
@@ -561,7 +645,7 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
         current_cv.get("experience", []),
         revised.get("experience", []),
     )
-    # Preserve language and role fields from current CV — revision does not change detected values
+    # Preserve language, role and ATS strategy fields from current CV
     result.setdefault("job_language",           current_cv.get("job_language", "unknown"))
     result.setdefault("cv_output_language",     current_cv.get("cv_output_language", "pl"))
     result.setdefault("language_confidence",    current_cv.get("language_confidence", "low"))
@@ -569,4 +653,8 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
     result.setdefault("role_type_confidence",   current_cv.get("role_type_confidence", "low"))
     result.setdefault("role_type_reasoning",    current_cv.get("role_type_reasoning", ""))
     result.setdefault("cv_emphasis",            current_cv.get("cv_emphasis", []))
+    result.setdefault("ats_keyword_strategy",   current_cv.get("ats_keyword_strategy", {
+        "supported_keywords": [], "adjacent_keywords": [], "unsupported_keywords": [],
+        "used_keywords": [], "excluded_keywords": [], "naturalness_notes": "",
+    }))
     return result

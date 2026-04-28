@@ -271,6 +271,7 @@
       <p id="match-notes" style="margin-top:8px; font-size:0.85rem; color:var(--grey);"></p>
       <div id="lang-badge" style="margin-top:8px; font-size:0.8rem; color:var(--grey); display:none;"></div>
       <div id="role-badge" style="margin-top:6px; font-size:0.8rem; color:var(--grey); display:none;"></div>
+      <div id="ats-strategy-badge" style="margin-top:6px; font-size:0.8rem; color:var(--grey); display:none;"></div>
     </div>
 
     <div class="row" style="margin-top:20px;">
@@ -404,6 +405,7 @@
     document.getElementById('match-notes').textContent = '';
     document.getElementById('lang-badge').style.display = 'none';
     document.getElementById('role-badge').style.display = 'none';
+    document.getElementById('ats-strategy-badge').style.display = 'none';
 
     setStep(2);
     document.getElementById('card-analysis').classList.remove('hidden');
@@ -473,6 +475,29 @@
       }
       roleBadge.innerHTML = roleHTML;
       roleBadge.style.display = 'block';
+      // ─────────────────────────────────────────────────────────────
+
+      // ── ATS keyword strategy badge ────────────────────────────────
+      const atsBadge  = document.getElementById('ats-strategy-badge');
+      const atsStrat  = adaptedCV.ats_keyword_strategy || {};
+      const usedKws   = atsStrat.used_keywords || [];
+      const exclKws   = atsStrat.excluded_keywords || [];
+      const atsNote   = atsStrat.naturalness_notes || '';
+
+      if (usedKws.length > 0 || exclKws.length > 0 || atsNote) {
+        let atsHTML = '<strong>ATS:</strong>';
+        if (usedKws.length > 0) {
+          atsHTML += `<br>U\u017cyte naturalnie: <span style="color:var(--navy);">${usedKws.join(' \u00b7 ')}</span>`;
+        }
+        if (exclKws.length > 0) {
+          atsHTML += `<br>Pomini\u0119te: <span style="color:var(--grey);">${exclKws.join(' \u00b7 ')}</span>`;
+        }
+        if (atsNote) {
+          atsHTML += `<br><em>${atsNote}</em>`;
+        }
+        atsBadge.innerHTML = atsHTML;
+        atsBadge.style.display = 'block';
+      }
       // ─────────────────────────────────────────────────────────────
 
       if (!document.getElementById('field-job-title').value && adaptedCV.job_title)
