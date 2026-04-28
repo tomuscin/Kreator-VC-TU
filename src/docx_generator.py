@@ -80,19 +80,38 @@ def _build_doc(cv_data: dict) -> Document:
 
     _add_divider(doc)
 
+    lang = cv_data.get("cv_output_language", "pl")
+
+    # ── Section headings (language-aware) ───────────────────────────
+    HEADINGS = {
+        "pl": {
+            "summary":    "PODSUMOWANIE ZAWODOWE",
+            "competencies": "KOMPETENCJE",
+            "experience": "DOŚWIADCZENIE ZAWODOWE",
+            "languages":  "ZNAJOMOŚĆ JĘZYKÓW",
+        },
+        "en-US": {
+            "summary":    "PROFESSIONAL SUMMARY",
+            "competencies": "COMPETENCIES",
+            "experience": "PROFESSIONAL EXPERIENCE",
+            "languages":  "LANGUAGES",
+        },
+    }
+    H = HEADINGS.get(lang, HEADINGS["pl"])
+
     # ── Summary ─────────────────────────────────────────────────────
-    _section_heading(doc, "PODSUMOWANIE ZAWODOWE")
+    _section_heading(doc, H["summary"])
     _body_paragraph(doc, cv_data.get("summary", ""))
 
     # ── Competencies ─────────────────────────────────────────────────
-    _section_heading(doc, "KOMPETENCJE")
+    _section_heading(doc, H["competencies"])
     comps = cv_data.get("competencies", [])
     if comps:
         comp_text = "  •  ".join(comps)
         _body_paragraph(doc, comp_text)
 
     # ── Work Experience ──────────────────────────────────────────────
-    _section_heading(doc, "DOŚWIADCZENIE ZAWODOWE")
+    _section_heading(doc, H["experience"])
     for job in cv_data.get("experience", []):
         p_job = doc.add_paragraph()
         p_job.paragraph_format.space_before = Pt(6)
@@ -115,43 +134,17 @@ def _build_doc(cv_data: dict) -> Document:
                 r_b.font.color.rgb = COLOR_TEXT
                 r_b.font.name = FONT_NAME
 
-    # ── Education ───────────────────────────────────────────────────
-    _section_heading(doc, "WYKSZTAŁCENIE")
-    for edu in cv_data.get("education", []):
-        p_e = doc.add_paragraph()
-        r_inst = p_e.add_run(edu["institution"])
-        r_inst.bold = True
-        r_inst.font.size = Pt(10)
-        r_inst.font.name = FONT_NAME
-        if edu.get("faculty"):
-            p_e.add_run(f", {edu['faculty']}")
-        if edu.get("degree"):
-            p_e2 = doc.add_paragraph()
-            p_e2.paragraph_format.left_indent = Inches(0.2)
-            r_deg = p_e2.add_run(edu["degree"])
-            r_deg.font.size = Pt(10)
-            r_deg.font.color.rgb = COLOR_LIGHT
-            r_deg.font.name = FONT_NAME
+    # NOTE: WYKSZTAŁCENIE (Education) and OBSZARY ZAINTERESOWAŃ (Interests)
+    # sections are intentionally NOT rendered in the final CV.
+    # Data remains in master_cv.json as LLM context only.
 
     # ── Languages ───────────────────────────────────────────────────
-    _section_heading(doc, "ZNAJOMOŚĆ JĘZYKÓW")
-    for lang in cv_data.get("languages", []):
-        _body_paragraph(doc, f"{lang['language']} – {lang['level']}")
+    _section_heading(doc, H["languages"])
+    for lang_item in cv_data.get("languages", []):
+        _body_paragraph(doc, f"{lang_item['language']} – {lang_item['level']}")
 
-    # ── Interests ───────────────────────────────────────────────────
-    if cv_data.get("interests"):
-        _section_heading(doc, "OBSZARY ZAINTERESOWAŃ")
-        _body_paragraph(doc, cv_data["interests"])
-
-    # ── ATS keywords note (small grey, not printed) ──────────────────
-    ats = cv_data.get("ats_keywords", [])
-    if ats:
-        _add_divider(doc)
-        p_ats = doc.add_paragraph()
-        r_ats = p_ats.add_run("Słowa kluczowe ATS: " + " • ".join(ats))
-        r_ats.font.size = Pt(8)
-        r_ats.font.color.rgb = RGBColor(0xCC, 0xCC, 0xCC)
-        r_ats.font.name = FONT_NAME
+    # NOTE: ATS keywords are intentionally NOT rendered in the final CV.
+    # They are used only as LLM context and shown in the UI analysis panel.
 
     # ── RODO clause ─────────────────────────────────────────────────
     if cv_data.get("rodo_clause"):

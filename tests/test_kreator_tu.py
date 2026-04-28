@@ -1026,3 +1026,237 @@ class TestExperienceGapAnalysis:
 
         assert result["experience_gap_analysis"] == original_gap, \
             "revise_full_cv musi zachować experience_gap_analysis z current_cv gdy LLM go nie zwróci"
+
+
+# ── Helper: extract all text from a DOCX ─────────────────────────────
+
+def _docx_full_text(docx_path: Path) -> str:
+    """Returns all paragraph text from a DOCX file as one string."""
+    from docx import Document
+    doc = Document(str(docx_path))
+    return " ".join(p.text for p in doc.paragraphs)
+
+
+# ── Test: fixed_experience_facts in master_cv.json ───────────────────
+
+class TestFixedExperienceFacts:
+    """Tests verifying that fixed_experience_facts in master_cv.json is correct."""
+
+    def test_fixed_facts_present(self, master_cv):
+        """master_cv.json must contain fixed_experience_facts."""
+        assert "fixed_experience_facts" in master_cv, \
+            "master_cv.json musi zawierać klucz 'fixed_experience_facts'"
+
+    def test_exactly_seven_entries(self, master_cv):
+        """fixed_experience_facts must have exactly 7 entries."""
+        facts = master_cv["fixed_experience_facts"]
+        assert len(facts) == 7, \
+            f"fixed_experience_facts musi mieć 7 pozycji, ma {len(facts)}"
+
+    def _find(self, facts: list, company: str) -> dict:
+        """Find a fact entry by company name."""
+        for f in facts:
+            if f["company"] == company:
+                return f
+        pytest.fail(f"Brakuje firmy '{company}' w fixed_experience_facts")
+
+    def test_profitia_consultants(self, master_cv):
+        f = self._find(master_cv["fixed_experience_facts"], "Profitia Consultants")
+        assert f["period_pl"] == "2025 – nadal"
+        assert f["period_en"] == "2025 – present"
+        assert f["industry"] == "Procurement SaaS"
+        assert "Senior Client Partner" in f["role_pl"]
+        assert "Senior Client Partner" in f["role_en"]
+
+    def test_onestep_financial(self, master_cv):
+        f = self._find(master_cv["fixed_experience_facts"], "OneStep Financial UK")
+        assert f["industry"] == "Digital Money FinTech"
+        assert "Sales Executive" in f["role_pl"]
+        assert f["period_pl"] == "2023 – 2025"
+        assert f["period_en"] == "2023 – 2025"
+
+    def test_gizmi_sa(self, master_cv):
+        f = self._find(master_cv["fixed_experience_facts"], "Gizmi SA")
+        assert f["period_pl"] == "2021 – 2023"
+        assert f["period_en"] == "2021 – 2023"
+        assert f["industry"] == "FinTech & MarTech SaaS"
+
+    def test_boomerun(self, master_cv):
+        f = self._find(master_cv["fixed_experience_facts"], "Boomerun")
+        assert f["industry"] == "InsurTech & SportTech PaaS"
+        assert f["period_pl"] == "2018 – 2021"
+
+    def test_hft_brokers(self, master_cv):
+        f = self._find(master_cv["fixed_experience_facts"], "HFT Brokers SA")
+        assert "CEO" in f["role_pl"]
+        assert "Head of Sales" in f["role_pl"]
+        assert f["period_pl"] == "2014 – 2016"
+        assert f["industry"] == "Online Brokerage House | Private Banking"
+
+    def test_tms_brokers(self, master_cv):
+        f = self._find(master_cv["fixed_experience_facts"], "TMS Brokers SA")
+        assert "Board Member" in f["role_pl"]
+        assert "Head of Sales and Customer Support" in f["role_pl"]
+        assert "Head of Analysis" in f["role_pl"]
+        assert f["period_pl"] == "2009 – 2012"
+
+    def test_xtb_sa(self, master_cv):
+        f = self._find(master_cv["fixed_experience_facts"], "XTB SA")
+        assert "Head of Sales" in f["role_pl"]
+        assert "Market Analyst" in f["role_pl"]
+        assert f["period_pl"] == "2006 – 2009"
+
+    def test_rodo_clause_en_present(self, master_cv):
+        """master_cv.json must have an English RODO clause."""
+        assert "rodo_clause_en" in master_cv, \
+            "master_cv.json musi zawierać klucz 'rodo_clause_en'"
+        clause = master_cv["rodo_clause_en"]
+        assert "consent" in clause.lower(), \
+            "Angielska klauzula RODO musi zawierać słowo 'consent'"
+        assert len(clause) > 50
+
+
+# ── Test: localized DOCX headings ────────────────────────────────────
+
+class TestDocxLocalization:
+    """Tests verifying language-aware headings, sections and RODO in DOCX."""
+
+    def _build_cv(self, master_cv: dict, lang: str) -> dict:
+        """Build a minimal cv_data for docx generation with given language."""
+        rodo = (
+            master_cv.get("rodo_clause_en", "")
+            if lang == "en-US"
+            else master_cv.get("rodo_clause", "")
+        )
+        return {
+            "personal": master_cv["personal"],
+            "education": master_cv["education"],
+            "languages": master_cv["languages"],
+            "interests": master_cv.get("interests", ""),
+            "rodo_clause": rodo,
+            "summary": "Test summary paragraph." if lang == "en-US" else "Testowe podsumowanie.",
+            "competencies": ["B2B Sales", "SaaS"] if lang == "en-US" else ["Sprzedaż B2B"],
+            "experience": [
+                {
+                    "title": "Head of Sales",
+                    "dates": "2025 – present" if lang == "en-US" else "2025 – nadal",
+                    "bullets": ["Grew pipeline by 2x." if lang == "en-US" else "Rozwinął pipeline."],
+                }
+            ],
+            "ats_keywords": [],
+            "cv_output_language": lang,
+        }
+
+    def test_polish_headings_in_docx(self, master_cv):
+        """Polish CV must contain Polish section headings."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "pl")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_pl.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "PODSUMOWANIE ZAWODOWE" in text
+            assert "KOMPETENCJE" in text
+            assert "DOŚWIADCZENIE ZAWODOWE" in text
+            assert "ZNAJOMOŚĆ JĘZYKÓW" in text
+
+    def test_english_headings_in_docx(self, master_cv):
+        """English CV must contain English section headings."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_en.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "PROFESSIONAL SUMMARY" in text
+            assert "COMPETENCIES" in text
+            assert "PROFESSIONAL EXPERIENCE" in text
+            assert "LANGUAGES" in text
+
+    def test_no_education_section_in_docx(self, master_cv):
+        """DOCX must not contain WYKSZTAŁCENIE or EDUCATION heading."""
+        from src.docx_generator import generate_cv_docx
+        for lang in ("pl", "en-US"):
+            cv = self._build_cv(master_cv, lang)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                out = Path(tmpdir) / f"test_edu_{lang}.docx"
+                generate_cv_docx(cv, out)
+                text = _docx_full_text(out)
+                assert "WYKSZTAŁCENIE" not in text, \
+                    f"DOCX ({lang}) nie może zawierać sekcji WYKSZTAŁCENIE"
+                assert "EDUCATION" not in text, \
+                    f"DOCX ({lang}) nie może zawierać sekcji EDUCATION"
+
+    def test_no_interests_section_in_docx(self, master_cv):
+        """DOCX must not contain OBSZARY ZAINTERESOWAŃ or INTERESTS heading."""
+        from src.docx_generator import generate_cv_docx
+        for lang in ("pl", "en-US"):
+            cv = self._build_cv(master_cv, lang)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                out = Path(tmpdir) / f"test_int_{lang}.docx"
+                generate_cv_docx(cv, out)
+                text = _docx_full_text(out)
+                assert "OBSZARY ZAINTERESOWAŃ" not in text, \
+                    f"DOCX ({lang}) nie może zawierać sekcji OBSZARY ZAINTERESOWAŃ"
+                assert "INTERESTS" not in text, \
+                    f"DOCX ({lang}) nie może zawierać sekcji INTERESTS"
+
+    def test_no_ats_keywords_block_in_docx(self, master_cv):
+        """DOCX must not contain any ATS keywords block."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "pl")
+        cv["ats_keywords"] = ["Senior Client Partner", "B2B sales", "SaaS"]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_ats.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "Słowa kluczowe ATS" not in text, \
+                "DOCX nie może zawierać bloku 'Słowa kluczowe ATS'"
+            assert "ATS keywords" not in text.lower() or text.lower().count("ats keywords") == 0, \
+                "DOCX nie może zawierać bloku 'ATS keywords'"
+            assert "Senior Client Partner • B2B sales" not in text, \
+                "DOCX nie może zawierać listy słów kluczowych ATS"
+
+    def test_polish_rodo_in_polish_cv(self, master_cv):
+        """Polish CV must contain the Polish RODO clause."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "pl")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_rodo_pl.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "Wyrażam zgodę" in text, \
+                "Polskie CV musi zawierać polską klauzulę RODO"
+
+    def test_english_rodo_in_english_cv(self, master_cv):
+        """English CV must contain the English RODO clause."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_rodo_en.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "I hereby consent" in text, \
+                "Angielskie CV musi zawierać angielską klauzulę RODO"
+
+    def test_no_polish_rodo_in_english_cv(self, master_cv):
+        """English CV must NOT contain the Polish RODO clause."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_no_pl_rodo.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "Wyrażam zgodę" not in text, \
+                "Angielskie CV nie może zawierać polskiej klauzuli RODO"
+
+    def test_no_english_rodo_in_polish_cv(self, master_cv):
+        """Polish CV must NOT contain the English RODO clause."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "pl")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_no_en_rodo.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "I hereby consent" not in text, \
+                "Polskie CV nie może zawierać angielskiej klauzuli RODO"

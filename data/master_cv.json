@@ -148,6 +148,65 @@
   ],
   "interests": "FinTech, AI & LLM applications in business, B2B sales innovation, startup ecosystems, financial markets, product design",
   "rodo_clause": "Wyrażam zgodę na przetwarzanie moich danych osobowych dla potrzeb niezbędnych do realizacji procesu rekrutacji (zgodnie z ustawą z dnia 10 maja 2018 roku o ochronie danych osobowych (Dz. Ustaw z 2018, poz. 1000) oraz zgodnie z Rozporządzeniem Parlamentu Europejskiego i Rady (UE) 2016/679 z dnia 27 kwietnia 2016 r. w sprawie ochrony osób fizycznych w związku z przetwarzaniem danych osobowych i w sprawie swobodnego przepływu takich danych).",
+  "rodo_clause_en": "I hereby consent to the processing of my personal data for the purposes necessary to carry out the recruitment process, in accordance with the Act of 10 May 2018 on the Protection of Personal Data (Journal of Laws of 2018, item 1000) and Regulation (EU) 2016/679 of the European Parliament and of the Council of 27 April 2016 on the protection of natural persons with regard to the processing of personal data and on the free movement of such data.",
+  "fixed_experience_facts": [
+    {
+      "company": "Profitia Consultants",
+      "industry": "Procurement SaaS",
+      "role_pl": "Senior Client Partner",
+      "role_en": "Senior Client Partner",
+      "period_pl": "2025 – nadal",
+      "period_en": "2025 – present"
+    },
+    {
+      "company": "OneStep Financial UK",
+      "industry": "Digital Money FinTech",
+      "role_pl": "Sales Executive",
+      "role_en": "Sales Executive",
+      "period_pl": "2023 – 2025",
+      "period_en": "2023 – 2025"
+    },
+    {
+      "company": "Gizmi SA",
+      "industry": "FinTech & MarTech SaaS",
+      "role_pl": "Co-Founder, Co-CEO",
+      "role_en": "Co-Founder, Co-CEO",
+      "period_pl": "2021 – 2023",
+      "period_en": "2021 – 2023"
+    },
+    {
+      "company": "Boomerun",
+      "industry": "InsurTech & SportTech PaaS",
+      "role_pl": "Founder, CEO",
+      "role_en": "Founder, CEO",
+      "period_pl": "2018 – 2021",
+      "period_en": "2018 – 2021"
+    },
+    {
+      "company": "HFT Brokers SA",
+      "industry": "Online Brokerage House | Private Banking",
+      "role_pl": "CEO, Head of Sales",
+      "role_en": "CEO, Head of Sales",
+      "period_pl": "2014 – 2016",
+      "period_en": "2014 – 2016"
+    },
+    {
+      "company": "TMS Brokers SA",
+      "industry": "Online Brokerage House",
+      "role_pl": "Board Member | Head of Sales and Customer Support | Head of Analysis",
+      "role_en": "Board Member | Head of Sales and Customer Support | Head of Analysis",
+      "period_pl": "2009 – 2012",
+      "period_en": "2009 – 2012"
+    },
+    {
+      "company": "XTB SA",
+      "industry": "Online Brokerage House",
+      "role_pl": "Head of Sales | Market Analyst",
+      "role_en": "Head of Sales | Market Analyst",
+      "period_pl": "2006 – 2009",
+      "period_en": "2006 – 2009"
+    }
+  ],
   "experience": [
     {
       "title": "Senior Client Partner / Procurement Technology",

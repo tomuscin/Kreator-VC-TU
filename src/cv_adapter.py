@@ -141,6 +141,11 @@ Po wygenerowaniu sekcji CV przygotuj krótką analizę luk dla użytkownika. Zaw
 Ta analiza służy tylko użytkownikowi w UI przed wysyłką CV. NIE wstawiaj do sekcji CV (summary, competencies, experience). NIE osłabiaj tekstu CV przez wzmiankę o lukach w treści CV.
 Przy poprawianiu CV (revise_full_cv): zachowaj lub zaktualizuj experience_gap_analysis. Nie zamykaj luk przez wymyslanie niepotwierdzonych doświadczeń.
 
+NIEZMIENNE FAKTY DOŚWIADCZENIA ZAWODOWEGO (fixed_experience_facts):
+Nazwy firm, branże/opisy firm, stanowiska i okresy zatrudnienia z sekcji fixed_experience_facts w profilu bazowym są FAKTAMI STAŁYMI i NIEZMIENNYMI. Nie wolno ich zmieniać, przeformułowywać, skracać, rozszerzać, wnioskować ani adaptować pod ogłoszenie. Można adaptować wyłącznie opisy obowiązków, zakresu odpowiedzialności i osiągnięć w ramach danego stanowiska. Firma, branża, stanowisko i okres muszą pozostać dokładnie takie, jak zdefiniowane w fixed_experience_facts. Dla wersji PL używaj period_pl. Dla wersji EN/en-US używaj period_en.
+
+The company names, industries, job titles and employment periods in fixed_experience_facts are immutable facts. Do not change, rewrite, infer, extend, shorten or adapt them to the job posting. You may adapt only the descriptions, responsibilities and achievements, but the company, industry, title and period must remain exactly as defined in fixed_experience_facts. For Polish CV output use period_pl. For English CV output use period_en.
+
 LIMITY ZNAKÓW (bezwzględne — nie przekraczaj):
 - Podsumowanie zawodowe / Professional Summary: max 900 znaków
 - Lista kompetencji (łącznie wszystkie): max 600 znaków
@@ -390,7 +395,7 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
         "education":            master_cv["education"],
         "languages":            master_cv["languages"],
         "interests":            master_cv.get("interests", ""),
-        "rodo_clause":          master_cv.get("rodo_clause", ""),
+        "rodo_clause":          master_cv.get("rodo_clause_en", "") if cv_output_language == "en-US" else master_cv.get("rodo_clause", ""),
         "summary":              adapted.get("summary", master_cv["summary"]),
         "competencies":         adapted.get("competencies", master_cv["competencies"]),
         "experience":           _merge_experience(master_cv["experience"], adapted.get("experience", [])),
