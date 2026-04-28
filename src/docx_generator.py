@@ -34,7 +34,23 @@ def generate_cv_docx(cv_data: dict, output_path: Path) -> Path:
         output_path (for chaining).
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    _build_doc(cv_data).save(str(output_path))
+    return output_path
 
+
+def generate_cv_docx_bytes(cv_data: dict) -> bytes:
+    """
+    Generates a .docx CV entirely in memory and returns raw bytes.
+    Avoids any filesystem dependency — safe for use in email sending.
+    """
+    from io import BytesIO
+    buf = BytesIO()
+    _build_doc(cv_data).save(buf)
+    return buf.getvalue()
+
+
+def _build_doc(cv_data: dict) -> Document:
+    """Builds and returns a Document from adapted cv_data."""
     doc = Document()
     _set_margins(doc)
 
@@ -147,8 +163,7 @@ def generate_cv_docx(cv_data: dict, output_path: Path) -> Path:
         r_rodo.font.name = FONT_NAME
         r_rodo.italic = True
 
-    doc.save(str(output_path))
-    return output_path
+    return doc
 
 
 # ── Helpers ─────────────────────────────────────────────────────────

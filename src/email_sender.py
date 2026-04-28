@@ -10,7 +10,6 @@ from email.header import Header
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pathlib import Path
 
 import certifi
 from dotenv import load_dotenv
@@ -31,25 +30,26 @@ def send_cv(
     to: str,
     subject: str,
     body_html: str,
-    docx_path: Path,
+    docx_bytes: bytes,
+    docx_filename: str,
     body_plain: str | None = None,
 ) -> None:
     """
     Sends a CV email with a .docx attachment via SMTP SSL.
 
     Args:
-        to:         Recipient email address.
-        subject:    Email subject.
-        body_html:  HTML body of the email.
-        docx_path:  Path to the generated .docx file to attach.
-        body_plain: Optional plain text fallback (auto-generated if omitted).
+        to:            Recipient email address.
+        subject:       Email subject.
+        body_html:     HTML body of the email.
+        docx_bytes:    Raw bytes of the .docx file to attach.
+        docx_filename: Filename shown in the email attachment.
+        body_plain:    Optional plain text fallback (auto-generated if omitted).
 
     Raises:
-        FileNotFoundError: If docx_path does not exist.
         smtplib.SMTPException: On SMTP errors.
     """
-    if not docx_path.exists():
-        raise FileNotFoundError(f"Plik CV nie istnieje: {docx_path}")
+    if not SMTP_USER or not SMTP_PASSWORD:
+        raise RuntimeError("SMTP credentials are not configured.")
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -67,9 +67,8 @@ def send_cv(
     msg.attach(MIMEText(body_html, "html", "utf-8"))
 
     # Attach .docx
-    with docx_path.open("rb") as f:
-        attachment = MIMEApplication(f.read(), _subtype="vnd.openxmlformats-officedocument.wordprocessingml.document")
-    attachment.add_header("Content-Disposition", "attachment", filename=docx_path.name)
+    attachment = MIMEApplication(docx_bytes, _subtype="vnd.openxmlformats-officedocument.wordprocessingml.document")
+    attachment.add_header("Content-Disposition", "attachment", filename=docx_filename)
 
     outer = MIMEMultipart("mixed")
     outer["Subject"] = msg["Subject"]

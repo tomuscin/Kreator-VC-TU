@@ -7,7 +7,9 @@ import os
 import re
 import secrets
 from datetime import date
+from io import BytesIO
 from pathlib import Path
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -17,7 +19,7 @@ from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.cv_adapter import adapt_cv, analyze_job_posting, revise_field, revise_full_cv
-from src.docx_generator import generate_cv_docx
+from src.docx_generator import generate_cv_docx, generate_cv_docx_bytes
 from src.email_sender import send_cv
 from src.history import add_entry, get_all, delete_entry
 from src.job_scraper import fetch_job_posting
@@ -242,7 +244,7 @@ async def revise_cv_endpoint(data: ReviseCVRequest):
 
 @app.post("/api/generate-docx")
 async def generate_docx(data: GenerateDocxRequest):
-    filename = _make_filename(data.company, data.job_date)
+    filename = _make_filename(data.job_title, data.company)
     output_path = OUTPUTS_DIR / filename
     try:
         generate_cv_docx(data.edited_cv, output_path)
@@ -260,7 +262,7 @@ async def generate_docx(data: GenerateDocxRequest):
         )
     except Exception:
         pass
-    return {"filename": filename, "download_url": f"/api/download/{filename}"}
+    return {"filename": filename, "download_url": f"/api/download/{quote(filename)}"}
 
 
 @app.get("/api/download/{filename}")
@@ -280,14 +282,13 @@ async def download(filename: str):
 @app.post("/api/send-email")
 async def send_email(data: SendRequest):
     filename = data.filename if data.filename.endswith(".docx") else _make_filename(
-        data.company, data.job_date
+        data.job_title, data.company
     )
-    output_path = OUTPUTS_DIR / filename
-    if not output_path.exists():
-        try:
-            generate_cv_docx(data.cv_data, output_path)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Błąd generowania .docx: {e}")
+    # Generate DOCX in memory — avoids ephemeral filesystem issues on Render
+    try:
+        docx_bytes = generate_cv_docx_bytes(data.cv_data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd generowania .docx: {e}")
 
     job_url_line = f'<p>🔗 <a href="{data.job_url}">{data.job_url}</a></p>' if data.job_url else ""
     body_html = f"""
@@ -304,7 +305,8 @@ async def send_email(data: SendRequest):
     <strong>Tomasz Uściński</strong></p>
     """
     try:
-        send_cv(to=data.to_email, subject=data.subject, body_html=body_html, docx_path=output_path)
+        send_cv(to=data.to_email, subject=data.subject, body_html=body_html,
+                docx_bytes=docx_bytes, docx_filename=filename)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Błąd wysyłki maila: {e}")
     return {"status": "sent", "to": data.to_email, "filename": filename}
@@ -349,11 +351,12 @@ def _slugify(text: str, max_len: int = 28) -> str:
     return text[:max_len].strip("_")
 
 
-def _make_filename(company: str, job_date: str = "") -> str:
-    """Tomasz_Uscinski_{firma}_{YYYY.MM.DD}.docx — date is generation date."""
+def _make_filename(job_title: str = "", company: str = "") -> str:
+    """CV Tomasz Uściński {job_title} {YYYY.MM.DD}.docx — date is always today."""
     today = date.today().strftime("%Y.%m.%d")
-    parts = ["Tomasz_Uscinski"]
-    if company:
-        parts.append(_slugify(company))
+    primary = (job_title or company or "").strip()
+    parts = ["CV", "Tomasz Uściński"]
+    if primary:
+        parts.append(primary)
     parts.append(today)
-    return "_".join(p for p in parts if p) + ".docx"
+    return " ".join(parts) + ".docx"
