@@ -2,98 +2,409 @@
   "_meta": {
     "source": "Tomasz Uściński — profil zawodowy",
     "note": "To jest źródło prawdy. LLM NIE może dodawać nowych doświadczeń, stanowisk, liczb, osiągnięć ani certyfikatów. Może jedynie przeakcentować i podkreślić istniejące treści pod kątem wymagań ogłoszenia.",
-    "version": "1.0",
+    "version": "2.0",
     "generated": "2026-04-28"
   },
-
   "personal": {
     "name": "Tomasz Uściński",
-    "phone": "+48 787 417 293",
-    "email": "tomasz.uscinski@profitia.pl",
-    "linkedin": "https://www.linkedin.com/in/tomasz-uscinski/"
+    "location": "Warsaw, Poland",
+    "phone": "+48 534 303 997",
+    "email": "uscinski.tomek@gmail.com",
+    "linkedin": "https://www.linkedin.com/in/uscinski/",
+    "website": "https://tomaszuscinski.pl/"
   },
-
-  "summary": "UZUPEŁNIJ: Wklej tutaj podsumowanie zawodowe Tomasza (3-5 zdań). Powinno opisywać jego profil zawodowy, specjalizację i główne obszary kompetencji.",
-
+  "summary": "Przedsiębiorczy menedżer C-level, founder i lider sprzedaży z ponad 15-letnim doświadczeniem w budowie, skalowaniu i komercjalizacji spółek technologicznych oraz usług B2B. Łączy kompetencje strategiczne, sprzedażowe, finansowe i produktowe z praktycznym doświadczeniem w zarządzaniu P&L, fundraisingu, rozwoju biznesu, budowie zespołów oraz wdrażaniu modeli go-to-market. Pracował na styku FinTech, InsurTech, MarTech, SaaS, private banking, risk management, e-commerce, procurement technology i nowoczesnych technologii.",
+  "summary_en": "Entrepreneurial C-level executive, founder and sales leader with 15+ years of experience in building, scaling and commercializing technology-driven companies and B2B services. Combines strategic, commercial, financial and product-oriented capabilities with hands-on experience in P&L management, fundraising, business development, team building and go-to-market execution. Experienced across FinTech, InsurTech, MarTech, SaaS, private banking, risk management, e-commerce, procurement technology and modern digital business models.",
   "competencies": [
-    "UZUPEŁNIJ: lista kompetencji",
-    "Sprzedaż B2B",
-    "Negocjacje",
-    "Zarządzanie klientem",
-    "SaaS / platformy zakupowe",
-    "Outreach i prospecting",
-    "CRM i pipeline management",
-    "GTM strategy",
-    "Prezentacje i demo produktowe"
+    "C-level leadership & P&L management",
+    "Business strategy & go-to-market",
+    "B2B / enterprise sales",
+    "Business development & fundraising",
+    "Revenue growth & sales team management",
+    "SaaS & digital product commercialization",
+    "FinTech, InsurTech, MarTech, Procurement Tech",
+    "Market analysis & risk management",
+    "Strategic partnerships & investor relations",
+    "AI-enabled sales automation & outreach",
+    "Lead generation & outbound campaigns",
+    "Value proposition & ICP development",
+    "Team building & cross-functional leadership",
+    "CRM & sales operations"
   ],
-
+  "core_competencies": [
+    "C-level leadership",
+    "P&L management",
+    "Business strategy",
+    "Go-to-market strategy",
+    "B2B sales",
+    "Enterprise sales",
+    "Revenue growth",
+    "Business development",
+    "Fundraising",
+    "Venture capital relations",
+    "Investor pitching",
+    "Product commercialization",
+    "SaaS business models",
+    "FinTech",
+    "InsurTech",
+    "MarTech",
+    "Procurement Technology",
+    "Digital products",
+    "Team building",
+    "Sales team management",
+    "Marketing strategy",
+    "PR and communications",
+    "Strategic partnerships",
+    "Market analysis",
+    "Financial services",
+    "Risk management",
+    "Private banking",
+    "Brokerage business",
+    "Regulated financial markets",
+    "Customer acquisition",
+    "Customer development",
+    "CRM and sales operations",
+    "Lead generation",
+    "Outbound sales",
+    "Cold email campaigns",
+    "Account-based outreach",
+    "Decision-maker mapping",
+    "ICP development",
+    "Value proposition design",
+    "Sales materials development",
+    "Commercial process documentation"
+  ],
+  "ai_llm_competencies": {
+    "description_pl": "Praktyczne wykorzystanie AI, LLM i narzędzi developerskich do projektowania skalowalnych, wysokospersonalizowanych procesów sprzedażowych i outreachowych. Doświadczenie obejmuje budowę workflow łączących dane o rynku, ICP, persony decyzyjne, komunikację sprzedażową, automatyzację researchu, generowanie spersonalizowanych wiadomości oraz zarządzanie pipeline'em kampanii.",
+    "description_en": "Practical use of AI, LLMs and developer-oriented tools to design scalable, highly personalized B2B sales and outreach workflows. Experience includes building processes that combine market data, ICP definitions, buyer personas, sales messaging, automated research, personalized outbound communication and campaign pipeline management.",
+    "skills": [
+      "LLM-assisted sales workflow design",
+      "Prompt engineering for B2B sales and recruitment use cases",
+      "AI-assisted market and account research",
+      "AI-assisted ICP and persona development",
+      "AI-assisted outbound message personalization",
+      "High-personalization cold outreach",
+      "Apollo-based lead generation and campaign operations",
+      "Agentic workflow design for research and sales automation",
+      "OpenAI API usage in business applications",
+      "Structured prompt and JSON-based output design",
+      "LLM guardrails and anti-hallucination logic",
+      "AI-assisted copywriting for B2B outreach",
+      "AI-assisted sales materials generation",
+      "Campaign orchestration and quality control",
+      "Data-driven sales process design",
+      "CRM and outreach process automation",
+      "Python-based automation scripts",
+      "GitHub-based project workflow",
+      "GitHub Copilot-assisted development",
+      "Render deployment basics",
+      "PostgreSQL database concepts for business applications",
+      "Sanity CMS concepts for structured content management",
+      "API-first thinking in business process automation",
+      "No-code, low-code and code-assisted prototyping"
+    ],
+    "tools": [
+      "OpenAI API",
+      "ChatGPT",
+      "LLM agents",
+      "GitHub",
+      "GitHub Copilot",
+      "Python",
+      "PostgreSQL",
+      "Render",
+      "Sanity",
+      "Apollo",
+      "CRM systems",
+      "HTML/CSS basics",
+      "API integrations",
+      "JSON",
+      "VS Code"
+    ],
+    "positioning_note": "Tomasz should be positioned not as a pure software engineer, but as a commercially driven technology operator who understands how to use AI, LLMs, data, automation and developer tools to build practical business systems: sales pipelines, personalized outreach engines, research workflows, CV adaptation tools, content workflows and lightweight SaaS-like internal applications."
+  },
   "education": [
     {
-      "institution": "UZUPEŁNIJ: uczelnia",
-      "faculty": "UZUPEŁNIJ: wydział / kierunek",
-      "degree": "UZUPEŁNIJ: tytuł"
+      "institution": "Akademia Leona Koźmińskiego / Universytet Warszawski",
+      "faculty": "Prawo",
+      "degree": "Magister prawa (Master of Law)"
     }
   ],
-
   "languages": [
     {
       "language": "Język angielski",
-      "level": "UZUPEŁNIJ: B2 / C1 / fluent"
+      "level": "C2"
     },
     {
       "language": "Język polski",
       "level": "ojczysty"
     }
   ],
-
-  "interests": "UZUPEŁNIJ: obszary zainteresowań (opcjonalnie)",
-
+  "interests": "FinTech, AI & LLM applications in business, B2B sales innovation, startup ecosystems, financial markets, product design",
   "rodo_clause": "Wyrażam zgodę na przetwarzanie moich danych osobowych dla potrzeb niezbędnych do realizacji procesu rekrutacji (zgodnie z ustawą z dnia 10 maja 2018 roku o ochronie danych osobowych (Dz. Ustaw z 2018, poz. 1000) oraz zgodnie z Rozporządzeniem Parlamentu Europejskiego i Rady (UE) 2016/679 z dnia 27 kwietnia 2016 r. w sprawie ochrony osób fizycznych w związku z przetwarzaniem danych osobowych i w sprawie swobodnego przepływu takich danych).",
-
   "experience": [
     {
-      "title": "Head of Sales",
-      "company": "Profitia / SpendGuru",
-      "dates": "UZUPEŁNIJ: np. 2022 – nadal",
+      "title": "Senior Client Partner / Procurement Technology",
+      "company": "SpendGuru / Profitia",
+      "dates": "2022 – present",
       "bullets": [
-        "UZUPEŁNIJ: opis głównych obowiązków i osiągnięć na tym stanowisku",
-        "UZUPEŁNIJ: kolejny punkt",
-        "UZUPEŁNIJ: kolejny punkt"
+        "Business development and client acquisition in B2B SaaS / procurement technology.",
+        "Building value propositions for procurement, finance and executive decision-makers.",
+        "Supporting sales communication, outreach and market education initiatives.",
+        "Connecting client business needs with data-driven procurement solutions.",
+        "Designing AI-assisted outreach workflows and personalized cold email campaigns."
       ]
     },
     {
-      "title": "UZUPEŁNIJ: poprzednie stanowisko",
-      "company": "UZUPEŁNIJ: firma",
-      "dates": "UZUPEŁNIJ: daty",
+      "title": "Co-Founder | Co-CEO",
+      "company": "Gizmi SA",
+      "dates": "January 2021 – present",
       "bullets": [
-        "UZUPEŁNIJ: opis",
-        "UZUPEŁNIJ: kolejny punkt"
+        "Co-founded FinTech & MarTech SaaS company developing a fast payments platform.",
+        "Responsible for strategy, business development, revenue, marketing, sales, finance and fundraising.",
+        "Built B2B/B2C go-to-market strategy and developed dedicated sales funnels.",
+        "Secured funding from venture capital investors.",
+        "Launched the Gizmi fast payments platform for desktop and mobile users.",
+        "Recognized at Cashless Congress 2022 as one of the most interesting cashless payment startups."
+      ]
+    },
+    {
+      "title": "Founder | CEO",
+      "company": "Boomerun Sp. z o.o.",
+      "dates": "December 2018 – January 2021",
+      "bullets": [
+        "Founded and led InsurTech / mobile app rewarding healthy lifestyle.",
+        "Responsible for business strategy, product, marketing, PR, revenue, P&L, finance, fundraising.",
+        "Invented and developed an innovative R&D InsurTech project financially backed by NCBiR.",
+        "Acquired major clients including TU Europa SA and Benefit Systems.",
+        "Participated in the MIT Enterprise Forum CEE accelerator program.",
+        "Boomerun was placed on the Polish FinTech / InsurTech map by Cashless.pl."
+      ]
+    },
+    {
+      "title": "CEO | Managing Director",
+      "company": "HFT Brokers SA",
+      "dates": "February 2014 – December 2016",
+      "bullets": [
+        "CEO and Managing Director of an online brokerage house.",
+        "Managed sales, marketing, product, IT, compliance, legal, trading, finance and risk.",
+        "Delivered KPI growth: turnover +200%, number of clients +170%, client funds +240%.",
+        "Named among TOP 25 Best Managers in Finance by Gazeta Finansowa (2016).",
+        "Listed in 100 WHO IS WHO of Polish Economics by Gazeta Giełdy Parkiet (2016).",
+        "Received Bulls and Bears Award and Central Securities Depository of Poland Award (2015)."
+      ]
+    },
+    {
+      "title": "Board Member | Head of Sales and Customer Support | Head of Analysis",
+      "company": "TMS Brokers SA",
+      "dates": "February 2009 – May 2012",
+      "bullets": [
+        "Board Member and leader of sales, customer support and analysis.",
+        "Responsible for strategy, business development, marketing, sales, finance and legal matters.",
+        "Delivered KPI growth: revenues +160%, number of clients +190%, client funds +110%.",
+        "Built and developed the business model for online brokerage and corporate risk management.",
+        "Created digital solutions: fast online payments and chat-commerce SaaS platform.",
+        "Built teams across sales, marketing, support, IT development and accounting."
+      ]
+    },
+    {
+      "title": "Head of Sales | Market Analyst",
+      "company": "XTB SA",
+      "dates": "August 2006 – February 2009",
+      "bullets": [
+        "Head of Sales and Market Analyst for investment products.",
+        "Delivered KPI growth: turnover +270%, number of clients +180%, client funds +170%.",
+        "Managed KPI delivery, hiring, training and coaching of the sales department.",
+        "Built media presence as market analyst: TVP, TVN, TVN CNBC, Polsat and TOK FM."
+      ]
+    },
+    {
+      "title": "Manager | Director",
+      "company": "Warta, Allianz, Signal Iduna and others",
+      "dates": "2001 – 2006",
+      "bullets": [
+        "Managerial and director-level experience in the financial and insurance sectors.",
+        "Worked with brands such as Warta, Allianz, Signal Iduna and other financial institutions."
       ]
     }
   ],
-
+  "achievements": [
+    "Co-founded and managed Gizmi SA — a FinTech & MarTech SaaS fast payments platform.",
+    "Built and commercialized innovative digital products in FinTech, InsurTech and SaaS.",
+    "Raised or supported fundraising from venture capital investors and business angels.",
+    "Built recurring revenue and client bases for technology ventures.",
+    "Created and scaled B2B and B2C go-to-market and sales funnel strategies.",
+    "Founded Boomerun — an R&D InsurTech project backed by NCBiR; acquired TU Europa SA & Benefit Systems.",
+    "Participated in the MIT Enterprise Forum CEE accelerator program.",
+    "Delivered strong KPI growth as CEO of HFT Brokers: turnover +200%, clients +170%, funds +240%.",
+    "Recognized among TOP 25 Best Managers in Finance by Gazeta Finansowa in 2016.",
+    "Included in 100 WHO IS WHO of Polish Economics by Gazeta Giełdy Parkiet in 2016.",
+    "Received Bulls and Bears Award by Gazeta Giełdy Parkiet for best investment product.",
+    "Delivered strong revenue and client growth as Board Member / Head of Sales at TMS Brokers.",
+    "Built teams in sales, marketing, customer support, IT development and accounting.",
+    "Built broad media presence as market analyst across major Polish TV and radio outlets."
+  ],
+  "sales_and_outreach_profile": {
+    "description_pl": "Doświadczenie w projektowaniu i realizacji pełnego procesu sprzedaży B2B: od analizy produktu i rynku, przez określenie ICP, person decyzyjnych, propozycji wartości i business case'ów, po budowę baz kontaktów, kampanie outbound, materiały sprzedażowe, spotkania, follow-up i zamykanie sprzedaży. Szczególna siła profilu to połączenie doświadczenia C-level, founderskiego i sprzedażowego z praktycznym rozumieniem technologii, danych i automatyzacji.",
+    "description_en": "Experience in designing and executing complete B2B sales processes: from product and market analysis, ICP definition, decision-maker mapping, value proposition and business case development to contact database building, outbound campaigns, sales materials, meetings, follow-up and deal closing. A key strength is the combination of C-level, founder and sales leadership experience with practical understanding of technology, data and automation.",
+    "keywords": [
+      "B2B sales strategy",
+      "sales process design",
+      "lead generation",
+      "outbound campaigns",
+      "cold email",
+      "Apollo",
+      "ICP",
+      "buyer personas",
+      "decision-makers",
+      "value proposition",
+      "business case development",
+      "sales materials",
+      "sales meetings",
+      "follow-up",
+      "CRM",
+      "pipeline management",
+      "revenue growth",
+      "go-to-market",
+      "founder-led sales",
+      "C-level selling"
+    ]
+  },
+  "technology_and_product_profile": {
+    "description_pl": "Doświadczenie w budowie i komercjalizacji produktów cyfrowych oraz spółek technologicznych, obejmujące platformy FinTech SaaS, aplikacje mobilne, rozwiązania InsurTech, płatności online, rozwiązania e-commerce/chat-commerce, narzędzia sprzedażowe oraz systemy oparte na danych. Profil nie jest profilem software engineera, ale lidera biznesowo-technologicznego.",
+    "description_en": "Experience in building and commercializing digital products and technology companies, including FinTech SaaS platforms, mobile apps, InsurTech solutions, online payments, e-commerce/chat-commerce solutions, sales tools and data-based systems. This is a business-technology leadership profile, not a pure software engineering profile.",
+    "keywords": [
+      "SaaS",
+      "PaaS",
+      "FinTech",
+      "InsurTech",
+      "MarTech",
+      "mobile applications",
+      "desktop applications",
+      "online payments",
+      "e-commerce",
+      "chat-commerce",
+      "product development",
+      "product commercialization",
+      "R&D projects",
+      "IT team cooperation",
+      "API integrations",
+      "data-driven business"
+    ]
+  },
+  "preferred_cv_style": {
+    "pl": "Styl profesjonalny, konkretny, C-level, biznesowo-technologiczny. Bez przesadnego marketingu, bez pustych sloganów i bez dopisywania niepotwierdzonych kompetencji. Tekst powinien pokazywać połączenie doświadczenia zarządczego, sprzedażowego, founderskiego, produktowego i technologicznego. W przypadku stanowisk stricte technologicznych należy pozycjonować Tomasza jako lidera biznesowo-technologicznego, operatora i użytkownika narzędzi AI/LLM, a nie jako klasycznego software engineera.",
+    "en": "Professional, concise, C-level, business-technology oriented style. Avoid excessive marketing language, empty slogans and unsupported claims. The text should show the combination of executive, sales, founder, product and technology experience. For technology-heavy roles, Tomasz should be positioned as a business-technology leader, operator and practical user of AI/LLM tools, not as a traditional software engineer."
+  },
+  "llm_guardrails": [
+    "Do not invent experience, companies, roles, tools, industries, metrics, certifications or achievements not present in the base profile.",
+    "Do not present Tomasz as a software engineer, developer or data scientist unless the job description only requires business-level technical understanding.",
+    "AI, LLM, GitHub, Python, PostgreSQL, Render, Sanity and API skills must be described as practical business automation and product/workflow prototyping competencies — not senior engineering experience.",
+    "When a job requires a skill not directly confirmed in the profile, use adjacent or transferable experience instead of claiming direct expertise.",
+    "Use ATS keywords naturally — only when consistent with the base profile.",
+    "Maintain credibility for readers with IT, SaaS, sales, finance and executive backgrounds.",
+    "Respect character limits: summary max 900 chars, competencies total max 600 chars, each bullet max 200 chars.",
+    "Prefer measurable achievements from the profile where available.",
+    "Do not add unconfirmed numbers to AI, LLM or outreach automation experience.",
+    "Avoid keyword stuffing.",
+    "Tomasz Uściński has strong business, sales, founder, C-level and technology-commercialization experience. He may use AI, LLMs, GitHub, Python, PostgreSQL, Render, Sanity and API-based tools in practical business workflows, automation and prototyping. Do not describe him as a senior software engineer, backend developer, ML engineer or data engineer unless the base CV explicitly confirms such a role. For IT-oriented job postings, position him as a business-technology leader, AI-enabled sales/process automation practitioner, product/commercial operator and executive who can work effectively with technical teams."
+  ],
+  "ats_keywords": [
+    "CEO",
+    "Co-Founder",
+    "Founder",
+    "Managing Director",
+    "Board Member",
+    "Head of Sales",
+    "VP Sales",
+    "Business Development",
+    "Sales Strategy",
+    "B2B Sales",
+    "Enterprise Sales",
+    "Go-to-Market",
+    "GTM",
+    "P&L",
+    "Revenue Growth",
+    "Fundraising",
+    "Venture Capital",
+    "Investor Relations",
+    "SaaS",
+    "FinTech",
+    "InsurTech",
+    "MarTech",
+    "Procurement Technology",
+    "Digital Product",
+    "Product Development",
+    "Product Commercialization",
+    "Team Leadership",
+    "Sales Operations",
+    "CRM",
+    "Outbound Sales",
+    "Lead Generation",
+    "Cold Email",
+    "Apollo",
+    "AI",
+    "LLM",
+    "OpenAI API",
+    "Prompt Engineering",
+    "AI Agents",
+    "Python",
+    "GitHub",
+    "GitHub Copilot",
+    "PostgreSQL",
+    "Render",
+    "Sanity",
+    "API Integration",
+    "Marketing Strategy",
+    "PR",
+    "Market Analysis",
+    "Risk Management",
+    "Financial Services",
+    "Brokerage",
+    "Private Banking",
+    "E-commerce",
+    "Chat-commerce"
+  ],
   "_profile_context": {
     "candidate_name": "Tomasz Uściński",
     "target_roles": [
       "Head of Sales",
-      "Sales Director",
+      "VP Sales",
       "Commercial Director",
       "Business Development Director",
-      "Account Executive — Enterprise / SaaS"
+      "Country Manager",
+      "General Manager",
+      "Revenue Leader",
+      "Founder / Co-Founder",
+      "CEO / Managing Director",
+      "Growth Lead",
+      "B2B Sales & GTM Consultant",
+      "Procurement Technology / SaaS Sales Leader",
+      "AI-enabled Sales Automation / Outreach Lead",
+      "Sales Operations / Revenue Operations Lead"
     ],
     "industries": [
+      "FinTech",
+      "InsurTech",
+      "MarTech",
       "SaaS / B2B software",
-      "Procurement technology",
-      "Sales technology",
-      "UZUPEŁNIJ: dodatkowe branże"
+      "Procurement Technology",
+      "Private banking",
+      "Brokerage",
+      "Risk management",
+      "E-commerce",
+      "Chat-commerce",
+      "Digital products",
+      "Financial services"
     ],
-    "preferred_cv_style": "Profesjonalny, konkretny, oparty na wynikach. Bez przesadnego marketingowego tonu. Liczby i fakty tam, gdzie są dostępne w profilu bazowym.",
+    "preferred_cv_style": "Profesjonalny, konkretny, C-level, biznesowo-technologiczny. Bez przesadnego marketingu.",
     "llm_constraints": [
       "Nie wymyślaj doświadczenia, kompetencji, narzędzi, branż, liczb, osiągnięć ani certyfikatów, których nie ma w tym profilu bazowym.",
       "Jeśli ogłoszenie wymaga kompetencji, której profil bazowy nie potwierdza, nie dopisuj jej jako faktu.",
       "Możesz wskazać kompetencje pokrewne, transferowalne lub sformułować tekst ostrożniej.",
-      "Nie używaj słów kluczowych ATS w sposób wymusony — wstawiaj je tylko tam, gdzie naturalnie pasują do realnego doświadczenia.",
-      "Zachowaj daty, nazwy stanowisk i firm dokładnie z profilu bazowego — bez zmian."
+      "Nie używaj słów kluczowych ATS w sposób wymusony.",
+      "Zachowaj daty, nazwy stanowisk i firm dokładnie z profilu bazowego — bez zmian.",
+      "Nie pozycjonuj Tomasza jako software engineera, backend developera ani data engineera.",
+      "AI/LLM/Python/GitHub: opisuj jako praktyczne narzędzia biznesowe, nie jako kompetencje inżynierskie."
     ]
   }
 }

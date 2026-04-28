@@ -41,6 +41,7 @@ ZASADY (bezwzględne):
 6. Optymalizuj pod ATS — używaj słów kluczowych z ogłoszenia tam, gdzie pasują do realnego doświadczenia.
 7. Nie wypychaj słów kluczowych na siłę (keyword stuffing) — tylko naturalne użycie.
 8. Zachowaj profesjonalny, konkretny styl. Unikaj przesadnego marketingowego tonu.
+9. POZYCJONOWANIE KANDYDATA: Tomasz Uściński posiada silne doświadczenie biznesowe, sprzedażowe, founderskie, C-level i w komercjalizacji technologii. Może używać AI, LLM, GitHub, Python, PostgreSQL, Render, Sanity i narzędzi API w praktycznych procesach biznesowych, automatyzacji i prototypowaniu. NIE opisuj go jako senior software engineera, backend developera, ML engineera ani data engineera, chyba że profil bazowy jednoznacznie potwierdza taką rolę. Dla ogłoszeń IT-oriented pozycjonuj go jako lidera biznesowo-technologicznego, praktyka automatyzacji sprzedaży/procesów opartego na AI, operatora komercyjno-produktowego i menadżera skutecznie współpracującego z zespołami technicznymi.
 
 LIMITY ZNAKÓW (bezwzględne — nie przekraczaj):
 - Podsumowanie zawodowe: max 900 znaków
