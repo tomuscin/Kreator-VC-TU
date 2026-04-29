@@ -2346,14 +2346,14 @@ class TestEmailSender:
             )
         mock_server.starttls.assert_not_called()
 
-    def test_render_yaml_smtp_host_is_gmail(self):
-        """render.yaml musi używać smtp.gmail.com (dostępny z Render)."""
+    def test_render_yaml_smtp_host_is_webd(self):
+        """render.yaml musi używać mail.tomaszuscinski.pl (tak jak aplikacja Anny)."""
         render_path = BASE_DIR / "render.yaml"
         if not render_path.exists():
             pytest.skip("brak render.yaml")
         content = render_path.read_text(encoding="utf-8")
-        assert "smtp.gmail.com" in content, \
-            "render.yaml musi zawierać smtp.gmail.com (mail.tomaszuscinski.pl timeout z Render)"
+        assert "mail.tomaszuscinski.pl" in content, \
+            "render.yaml musi zawierać mail.tomaszuscinski.pl"
 
     def test_env_example_smtp_host_present(self):
         """.env.example musi zawierać SMTP_HOST."""
