@@ -92,9 +92,19 @@ def send_cv(
 
     context = _smtp_ssl_context()
     try:
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=30) as server:
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_FROM, [to], outer.as_string())
+        if SMTP_PORT == 465:
+            # Implicit TLS
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=30) as server:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.sendmail(SMTP_FROM, [to], outer.as_string())
+        else:
+            # STARTTLS (port 587)
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+                server.ehlo()
+                server.starttls(context=context)
+                server.ehlo()
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.sendmail(SMTP_FROM, [to], outer.as_string())
     except smtplib.SMTPAuthenticationError:
         raise RuntimeError(
             "Błąd logowania SMTP. Sprawdź SMTP_USER i SMTP_PASSWORD / Google App Password."
@@ -118,8 +128,15 @@ def test_connection() -> bool:
         smtplib.SMTPException: On other SMTP errors.
     """
     context = _smtp_ssl_context()
-    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
-        server.login(SMTP_USER, SMTP_PASSWORD)
+    if SMTP_PORT == 465:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+    else:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            server.login(SMTP_USER, SMTP_PASSWORD)
     return True
 
 

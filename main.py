@@ -164,16 +164,27 @@ async def test_smtp(_: str = Depends(lambda: None)):
     try:
         ctx = _smtp_ssl_context()
         with socket.create_connection((SMTP_HOST, SMTP_PORT), timeout=8) as sock:
-            with ctx.wrap_socket(sock, server_hostname=SMTP_HOST):
-                result["ssl_handshake"] = "ok"
+            if SMTP_PORT == 465:
+                with ctx.wrap_socket(sock, server_hostname=SMTP_HOST):
+                    result["ssl_handshake"] = "ok (implicit TLS)"
+            else:
+                result["ssl_handshake"] = "skipped (STARTTLS — tested in smtp_login)"
     except Exception as e:
         result["ssl_handshake"] = f"BŁĄD: {e}"
         return result
     try:
         ctx = _smtp_ssl_context()
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=8) as server:
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            result["smtp_login"] = "ok"
+        if SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=8) as server:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                result["smtp_login"] = "ok"
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=8) as server:
+                server.ehlo()
+                server.starttls(context=ctx)
+                server.ehlo()
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                result["smtp_login"] = "ok (STARTTLS)"
     except Exception as e:
         result["smtp_login"] = f"BŁĄD: {e}"
     return result
