@@ -30,3 +30,15 @@ services:
         sync: false          # login do Basic Auth
       - key: APP_PASSWORD
         sync: false          # hasło do Basic Auth
+      - key: DB_ENABLED
+        value: "true"
+      - key: DB_HOST
+        value: mn05.webd.pl
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_NAME
+        value: tomuscin_cv_tomasz
+      - key: DB_USER
+        value: tomuscin_tomuscin
+      - key: DB_PASSWORD
+        sync: false          # hasło MySQL — wpisz ręcznie w Render dashboard
