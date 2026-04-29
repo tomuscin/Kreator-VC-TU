@@ -82,19 +82,19 @@ def _send_via_resend(
 ) -> None:
     import resend
     resend.api_key = RESEND_API_KEY
-    params = resend.Emails.SendParams(
-        from_=from_field,
-        to=[to],
-        subject=subject,
-        html=body_html,
-        text=body_plain,
-        attachments=[
-            resend.Attachment(
-                filename=docx_filename,
-                content=list(docx_bytes),
-            )
+    params = {
+        "from": from_field,
+        "to": [to],
+        "subject": subject,
+        "html": body_html,
+        "text": body_plain,
+        "attachments": [
+            {
+                "filename": docx_filename,
+                "content": list(docx_bytes),
+            }
         ],
-    )
+    }
     response = resend.Emails.send(params)
     if not response.get("id"):
         raise RuntimeError(f"Resend nie zwrócił ID wiadomości: {response}")
@@ -168,10 +168,17 @@ def test_connection() -> bool:
     Returns True on success, raises on failure.
     """
     if RESEND_API_KEY:
-        import resend
+        import resend, httpx
         resend.api_key = RESEND_API_KEY
-        # Listing domains is a lightweight authenticated call with no side effects
-        resend.Domains.list()
+        # Lightweight authenticated ping — send to Resend's own test address
+        resp = httpx.get(
+            "https://api.resend.com/emails/00000000-0000-0000-0000-000000000000",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            timeout=10,
+        )
+        # 404 = not found (expected), 401 = bad key → raise
+        if resp.status_code == 401:
+            raise RuntimeError("Resend: nieprawidłowy klucz API")
         return True
 
     context = _smtp_ssl_context()

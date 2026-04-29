@@ -2162,6 +2162,7 @@ class TestEmailSender:
         from unittest import mock
         import src.email_sender as em
 
+        monkeypatch.setattr(em, "RESEND_API_KEY", "")
         monkeypatch.setattr(em, "SMTP_USER",     smtp_user)
         monkeypatch.setattr(em, "SMTP_PASSWORD", smtp_password)
         monkeypatch.setattr(em, "SMTP_FROM",     smtp_user)
@@ -2191,6 +2192,7 @@ class TestEmailSender:
         from unittest import mock
         import src.email_sender as em
 
+        monkeypatch.setattr(em, "RESEND_API_KEY", "")
         monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
         monkeypatch.setattr(em, "SMTP_PASSWORD", "secret")
         monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
@@ -2218,6 +2220,7 @@ class TestEmailSender:
         from unittest import mock
         import src.email_sender as em
 
+        monkeypatch.setattr(em, "RESEND_API_KEY", "")
         monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
         monkeypatch.setattr(em, "SMTP_PASSWORD", "secret16charspass")
         monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
@@ -2242,6 +2245,7 @@ class TestEmailSender:
         from unittest import mock
         import src.email_sender as em
 
+        monkeypatch.setattr(em, "RESEND_API_KEY", "")
         monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
         monkeypatch.setattr(em, "SMTP_PASSWORD", "secret")
         monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
@@ -2267,6 +2271,7 @@ class TestEmailSender:
     def test_send_cv_missing_credentials_raises(self, monkeypatch):
         """send_cv must raise RuntimeError when credentials are empty."""
         import src.email_sender as em
+        monkeypatch.setattr(em, "RESEND_API_KEY", "")
         monkeypatch.setattr(em, "SMTP_USER",     "")
         monkeypatch.setattr(em, "SMTP_PASSWORD", "")
 
@@ -2283,6 +2288,7 @@ class TestEmailSender:
         from unittest import mock
         import src.email_sender as em
 
+        monkeypatch.setattr(em, "RESEND_API_KEY", "")
         monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
         monkeypatch.setattr(em, "SMTP_PASSWORD", "wrongpassword")
         monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
@@ -2308,6 +2314,7 @@ class TestEmailSender:
         from unittest import mock
         import src.email_sender as em
 
+        monkeypatch.setattr(em, "RESEND_API_KEY", "")
         monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
         monkeypatch.setattr(em, "SMTP_PASSWORD", "secret")
         monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
@@ -2328,6 +2335,7 @@ class TestEmailSender:
         from unittest import mock
         import src.email_sender as em
 
+        monkeypatch.setattr(em, "RESEND_API_KEY", "")
         monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
         monkeypatch.setattr(em, "SMTP_PASSWORD", "secret")
         monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
