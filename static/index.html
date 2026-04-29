@@ -972,12 +972,49 @@
     return `<div class="analysis-item"><h3>${title}</h3><div class="tag-list">${tags || '<span class="tag">—</span>'}</div></div>`;
   }
 
-  // ── Step 2: generate adapted CV ───────────────────────────────────
+  // ── Step 2: generate adapted CV (SSE streaming — avoids 30s timeout) ──
   async function generateCV() {
-    showStatus('status-adapt', 'Generuję dopasowane CV Tomasza Uścińskiego...', 'loading');
+    showStatus('status-adapt', 'Łączę z modelem AI...', 'loading');
     try {
-      const res = await api('/api/adapt', { job_posting: jobPosting });
-      adaptedCV = res.adapted_cv;
+      const resp = await fetch('/api/adapt-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_posting: jobPosting }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        throw new Error(err.detail || resp.statusText);
+      }
+      const reader  = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split('\n\n');
+        buffer = chunks.pop();  // keep incomplete last chunk
+        for (const chunk of chunks) {
+          const line = chunk.trim();
+          if (!line.startsWith('data:')) continue;
+          const payload = JSON.parse(line.slice(5).trim());
+          if (payload.status === 'started') {
+            showStatus('status-adapt', 'Model AI generuje CV — proszę czekać (30-60s)...', 'loading');
+          } else if (payload.status === 'done') {
+            _applyAdaptedCV(payload.adapted_cv);
+          } else if (payload.status === 'error') {
+            throw new Error(payload.detail || 'Nieznany błąd adaptacji CV');
+          }
+        }
+      }
+    } catch(e) {
+      showStatus('status-adapt', e.message, 'error');
+    }
+  }
+
+  function _applyAdaptedCV(adapted) {
+      adaptedCV = adapted;
 
       const score = adaptedCV.match_score || 0;
       const cls   = score >= 75 ? 'match-high' : score >= 50 ? 'match-medium' : 'match-low';
@@ -1012,19 +1049,19 @@
       const roleTypeLabel = {
         individual_contributor: 'Business Development / Client Partner',
         sales_leadership:       'Sales Leadership / Management',
-        mixed:                  'Mixed — sprzeda\u017c indywidualna + leadership',
+        mixed:                  'Mixed — sprzedaż indywidualna + leadership',
         unknown:                'Nieustalony',
       }[roleType] || 'Nieustalony';
 
       let roleHTML = `Typ roli: <strong>${roleTypeLabel}</strong>`;
       if (roleConf === 'low') {
-        roleHTML += ` <span style="color:#e07b00;">(niska pewno\u015b\u0107 klasyfikacji)</span>`;
+        roleHTML += ` <span style="color:#e07b00;">(niska pewność klasyfikacji)</span>`;
       }
       if (roleReason) {
         roleHTML += `<br><span style="color:var(--grey);">${roleReason}</span>`;
       }
       if (cvEmphasis.length > 0) {
-        roleHTML += `<br><span style="color:var(--grey);">Akcenty CV: ${cvEmphasis.join(' \u00b7 ')}</span>`;
+        roleHTML += `<br><span style="color:var(--grey);">Akcenty CV: ${cvEmphasis.join(' · ')}</span>`;
       }
       roleBadge.innerHTML = roleHTML;
       roleBadge.style.display = 'block';
@@ -1040,10 +1077,10 @@
       if (usedKws.length > 0 || exclKws.length > 0 || atsNote) {
         let atsHTML = '<strong>ATS:</strong>';
         if (usedKws.length > 0) {
-          atsHTML += `<br>U\u017cyte naturalnie: <span style="color:var(--navy);">${usedKws.join(' \u00b7 ')}</span>`;
+          atsHTML += `<br>Użyte naturalnie: <span style="color:var(--navy);">${usedKws.join(' · ')}</span>`;
         }
         if (exclKws.length > 0) {
-          atsHTML += `<br>Pomini\u0119te: <span style="color:var(--grey);">${exclKws.join(' \u00b7 ')}</span>`;
+          atsHTML += `<br>Pominięte: <span style="color:var(--grey);">${exclKws.join(' · ')}</span>`;
         }
         if (atsNote) {
           atsHTML += `<br><em>${atsNote}</em>`;
@@ -1114,9 +1151,6 @@
       setStep(3);
       document.getElementById('card-preview').classList.remove('hidden');
       document.getElementById('card-preview').scrollIntoView({ behavior: 'smooth' });
-    } catch(e) {
-      showStatus('status-adapt', e.message, 'error');
-    }
   }
 
   // ── CV Preview renderer ────────────────────────────────────────────

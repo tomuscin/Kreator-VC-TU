@@ -13,7 +13,7 @@ from urllib.parse import quote
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -23,6 +23,9 @@ from src.docx_generator import generate_cv_docx, generate_cv_docx_bytes
 from src.email_sender import send_cv
 from src.history import add_entry, get_all, delete_entry
 from src.job_scraper import fetch_job_posting
+import asyncio
+import json as _json_mod
+
 import src.application_repository as app_repo
 import src.storage as storage
 
@@ -221,6 +224,42 @@ async def adapt(data: AdaptRequest):
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     return {"adapted_cv": adapted}
+
+
+@app.post("/api/adapt-stream")
+async def adapt_stream(data: AdaptRequest):
+    """
+    Streaming version of /api/adapt using Server-Sent Events.
+    Sends an immediate 'started' event to prevent Render 30s timeout,
+    then runs adapt_cv in a thread pool and sends the result when done.
+    """
+    if len(data.job_posting) < 50:
+        raise HTTPException(status_code=400, detail="Treść ogłoszenia jest za krótka.")
+
+    async def event_generator():
+        # Immediate event — prevents 30s gateway timeout
+        yield 'data: {"status":"started"}\n\n'
+        loop = asyncio.get_event_loop()
+        try:
+            adapted = await loop.run_in_executor(
+                None,
+                lambda: adapt_cv(data.job_posting, master_cv=data.edited_cv),
+            )
+            result = _json_mod.dumps(
+                {"status": "done", "adapted_cv": adapted}, ensure_ascii=False
+            )
+            yield f"data: {result}\n\n"
+        except (ValueError, RuntimeError) as exc:
+            err = _json_mod.dumps(
+                {"status": "error", "detail": str(exc)}, ensure_ascii=False
+            )
+            yield f"data: {err}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/api/revise")
