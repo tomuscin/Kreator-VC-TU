@@ -245,20 +245,16 @@ async def adapt_stream(data: AdaptRequest):
             adapted = await asyncio.wait_for(
                 loop.run_in_executor(
                     None,
-                    lambda: adapt_cv(data.job_posting, master_cv=data.edited_cv),
+                    lambda: adapt_cv(data.job_posting, master_cv=data.edited_cv, fast=True),
                 ),
-                timeout=90.0,
+                timeout=130.0,
             )
             result = _json_mod.dumps(
                 {"status": "done", "adapted_cv": adapted}, ensure_ascii=False
             )
             yield f"data: {result}\n\n"
         except asyncio.TimeoutError:
-            err = _json_mod.dumps(
-                {"status": "error", "detail": "Generowanie CV przekroczyło limit czasu (90s). Spróbuj ponownie."},
-                ensure_ascii=False,
-            )
-            yield f"data: {err}\n\n"
+            yield 'data: {"status":"error","detail":"Generowanie CV przekroczyło limit czasu (130s). Spróbuj ponownie lub skróć ogłoszenie."}\n\n'
         except (ValueError, RuntimeError) as exc:
             msg = str(exc)
             # Translate common OpenAI API errors to readable Polish messages

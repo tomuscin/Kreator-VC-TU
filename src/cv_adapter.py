@@ -17,7 +17,7 @@ from pathlib import Path
 
 # openai_client.py lives at project root (works both locally and on Render)
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from openai_client import chat  # noqa: E402
+from openai_client import chat, MINI_MODEL  # noqa: E402
 
 MASTER_CV_PATH = Path(__file__).parent.parent / "data" / "master_cv.json"
 
@@ -312,7 +312,7 @@ OUTPUT_SCHEMA = {
 }
 
 
-def adapt_cv(job_posting: str, master_cv: dict | None = None) -> dict:
+def adapt_cv(job_posting: str, master_cv: dict | None = None, *, fast: bool = False) -> dict:
     """
     Adapts the master CV (Tomasz Uściński) to a specific job posting using LLM.
 
@@ -368,12 +368,16 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
 {json.dumps(OUTPUT_SCHEMA, ensure_ascii=False, indent=2)}
 """.strip()
 
+    # fast=True uses the mini model (3-4× faster) — used by the SSE streaming endpoint
+    # to avoid gateway timeouts. max_completion_tokens=3500 is enough: CV output
+    # rarely exceeds ~2 000 tokens; the extra head-room handles verbose gap analysis.
     response = chat(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
-        max_completion_tokens=8000,
+        model=MINI_MODEL if fast else None,
+        max_completion_tokens=3500,
     )
 
     raw = (response.choices[0].message.content or "").strip()
