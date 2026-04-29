@@ -307,7 +307,8 @@ OUTPUT_SCHEMA = {
         "not_used": [{"keyword": "string", "reason": "string"}]
     },
     "company": "string — company name from job posting (or '')",
-    "job_title": "string — job title from job posting"
+    "job_title": "string — job title from job posting",
+    "job_posting_date": "string — date of job posting in YYYY-MM-DD format (or '' if not found in text)",
 }
 
 
@@ -414,6 +415,7 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
         "experience_gap_analysis": gap_analysis,
         "company":              adapted.get("company", ""),
         "job_title":            adapted.get("job_title", ""),
+        "job_posting_date":     adapted.get("job_posting_date", ""),
         "job_language":         job_language,
         "cv_output_language":   cv_output_language,
         "language_confidence":  language_confidence,
@@ -482,7 +484,8 @@ def analyze_job_posting(job_posting: str) -> dict:
   "tone": "description of job posting tone (1 sentence)",
   "priority_competencies": ["top 5 competencies expected by employer"],
   "company": "company name (or '' if not found)",
-  "job_title": "job title from the posting"
+  "job_title": "job title from the posting",
+  "job_posting_date": "date of job posting in YYYY-MM-DD format (or '' if not found)"
 }}
 
 Rules for language fields:

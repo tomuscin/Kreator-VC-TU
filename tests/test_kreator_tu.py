@@ -8,9 +8,15 @@ Tests cover:
 - Filename generation
 - History storage
 - Language detection and CV output language handling
+- Application repository (DB module)
+- Storage / FTP module
+- New dashboard API endpoints
+- CSV export
+- Frontend (static/index.html) content checks
 """
 
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -1626,3 +1632,409 @@ class TestJobTitleInDocx:
             )
         assert result.get("job_title") == "Client Partner", \
             f"revise_full_cv musi zachować job_title='Client Partner', got: {result.get('job_title')}"
+
+
+# ══════════════════════════════════════════════════════════════════════
+# NEW TESTS — application_repository, storage, endpoints, CSV, frontend
+# ══════════════════════════════════════════════════════════════════════
+
+# ── Test: application_repository module ──────────────────────────────
+
+class TestApplicationRepository:
+    """Tests for src/application_repository.py (DB module)."""
+
+    def test_import_does_not_raise(self):
+        """Module must import cleanly."""
+        import src.application_repository as repo  # noqa: F401
+
+    def test_db_disabled_init_returns_false(self, monkeypatch):
+        """init_db() returns False when DB_ENABLED != true."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        import importlib
+        import src.application_repository as repo
+        importlib.reload(repo)
+        result = repo.init_db()
+        assert result is False
+
+    def test_db_disabled_save_returns_none(self, monkeypatch):
+        """save_application() returns None when DB_ENABLED=false."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        import src.application_repository as repo
+        result = repo.save_application({"status": "generated", "company_name": "Test"})
+        assert result is None
+
+    def test_db_disabled_list_returns_none(self, monkeypatch):
+        """list_applications() returns None when DB_ENABLED=false."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        import src.application_repository as repo
+        result = repo.list_applications()
+        assert result is None
+
+    def test_db_disabled_update_contact_returns_false(self, monkeypatch):
+        """update_contact() returns False when DB_ENABLED=false."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        import src.application_repository as repo
+        result = repo.update_contact(1, "Jan Kowalski", "+48 123", "jan@firma.pl")
+        assert result is False
+
+    def test_db_disabled_update_notes_returns_false(self, monkeypatch):
+        """update_notes() returns False when DB_ENABLED=false."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        import src.application_repository as repo
+        result = repo.update_notes(1, "Notatka testowa")
+        assert result is False
+
+    def test_db_disabled_get_stats_returns_empty(self, monkeypatch):
+        """get_stats() returns empty dict when DB_ENABLED=false."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        import src.application_repository as repo
+        result = repo.get_stats()
+        assert result == {}
+
+    def test_export_csv_includes_headers_when_db_disabled(self, monkeypatch):
+        """export_csv() must return CSV with headers even when DB disabled."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        import src.application_repository as repo
+        csv_data = repo.export_csv()
+        assert "contact_person" in csv_data
+        assert "contact_phone" in csv_data
+        assert "contact_email" in csv_data
+        assert "company_name" in csv_data
+        assert "job_title" in csv_data
+        assert "role_type" in csv_data
+        assert "cv_public_url" in csv_data
+        assert "notes" in csv_data
+
+    def test_table_schema_contains_contact_fields(self):
+        """Table DDL must contain contact_person, contact_phone, contact_email."""
+        from src.application_repository import _TABLE_DDL
+        assert "contact_person" in _TABLE_DDL
+        assert "contact_phone" in _TABLE_DDL
+        assert "contact_email" in _TABLE_DDL
+
+    def test_migration_columns_contains_contact_fields(self):
+        """Migration columns dict must contain contact fields."""
+        from src.application_repository import _MIGRATION_COLUMNS
+        assert "contact_person" in _MIGRATION_COLUMNS
+        assert "contact_phone" in _MIGRATION_COLUMNS
+        assert "contact_email" in _MIGRATION_COLUMNS
+
+    def test_role_type_label_mapping(self):
+        """role_type_label() must return correct labels."""
+        from src.application_repository import role_type_label
+        assert role_type_label("individual_contributor") == "Business Development / Client Partner"
+        assert role_type_label("sales_leadership") == "Sales Leadership / Management"
+        assert role_type_label("mixed") == "Mixed — sprzedaż indywidualna + leadership"
+        assert role_type_label("unknown") == "Nieustalony"
+        assert role_type_label("garbage") == "Nieustalony"
+
+    def test_csv_columns_match_export(self, monkeypatch):
+        """CSV header row must contain all CSV_COLUMNS."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        import src.application_repository as repo
+        csv_data = repo.export_csv()
+        header = csv_data.split("\n")[0]
+        for col in repo.CSV_COLUMNS:
+            assert col in header, f"CSV header brakuje kolumny: {col}"
+
+
+# ── Test: storage module ──────────────────────────────────────────────
+
+class TestStorageModule:
+    """Tests for src/storage.py (FTP module)."""
+
+    def test_import_does_not_raise(self):
+        """Module must import cleanly."""
+        import src.storage as storage  # noqa: F401
+
+    def test_ftp_disabled_upload_returns_disabled(self, monkeypatch):
+        """upload_docx() returns disabled=True when FTP_ENABLED=false."""
+        monkeypatch.setenv("FTP_ENABLED", "false")
+        import src.storage as storage
+        result = storage.upload_docx("/tmp/fakefile.docx")
+        assert result["ok"] is False
+        assert result["reason"] == "disabled"
+        assert result["remote_path"] == ""
+        assert result["public_url"] == ""
+
+    def test_make_remote_path_format(self):
+        """make_remote_path must create YYYY/MM directory structure."""
+        from datetime import datetime
+        from src.storage import make_remote_path
+        now = datetime(2026, 4, 28, 10, 0, 0)
+        path = make_remote_path("/cv-kreator/generated", "CV_test.docx", now)
+        assert "/2026/04/CV_test.docx" in path
+        assert path.startswith("/cv-kreator/generated")
+
+    def test_make_remote_filename_sanitizes_polish_chars(self):
+        """make_remote_filename must remove Polish diacritics."""
+        from src.storage import make_remote_filename
+        fname = make_remote_filename(
+            job_title="Dyrektor Sprzedaży",
+            company_name="Próbna Firma",
+            date_str="2026-04-28",
+        )
+        assert "ż" not in fname
+        assert "ó" not in fname
+        assert fname.endswith(".docx")
+
+    def test_make_remote_filename_contains_company_and_title(self):
+        """Filename must contain sanitized company and job title parts."""
+        from src.storage import make_remote_filename
+        fname = make_remote_filename(
+            job_title="Client Partner",
+            company_name="Digital Forms",
+            date_str="2026-04-28",
+        )
+        assert "Client_Partner" in fname
+        assert "Digital_Forms" in fname
+        assert "2026-04-28" in fname
+        assert fname.startswith("CV_Tomasz_Uscinski")
+
+    def test_make_remote_filename_no_special_chars(self):
+        """Filename must not contain special characters (except underscores, hyphens, dots)."""
+        import re
+        from src.storage import make_remote_filename
+        fname = make_remote_filename("Sales & Marketing Lead", "Company (Ltd.)", "2026-01-15")
+        # Allow: letters, digits, underscores, hyphens, dots
+        assert re.match(r'^[A-Za-z0-9_.\-]+$', fname), \
+            f"Filename contains invalid chars: {fname}"
+
+    def test_sanitize_part_removes_special_chars(self):
+        """_sanitize_part helper removes special chars."""
+        from src.storage import _sanitize_part
+        result = _sanitize_part("Hello & World (2026)")
+        assert "&" not in result
+        assert "(" not in result
+        assert ")" not in result
+
+
+# ── Test: metadata from cv_data ───────────────────────────────────────
+
+class TestCVMetadata:
+    """Tests for metadata extracted from cv_data for Digital Forms / Client Partner."""
+
+    def _make_cv_data(self, master_cv: dict) -> dict:
+        """Build cv_data simulating a Digital Forms / Client Partner output."""
+        return {
+            "personal":             master_cv["personal"],
+            "education":            master_cv["education"],
+            "languages":            master_cv["languages"],
+            "interests":            "",
+            "rodo_clause":          master_cv.get("rodo_clause_en", ""),
+            "summary":              "Experienced Client Partner with B2B SaaS background.",
+            "competencies":         ["Business Development", "Client Acquisition"],
+            "experience":           [],
+            "ats_keywords":         ["Client Partner", "B2B", "SaaS"],
+            "match_score":          82,
+            "match_notes":          "Good match for this commercial role.",
+            "covered_requirements": [],
+            "gaps":                 [],
+            "ats_report":           {"used": [], "not_used": []},
+            "company":              "Digital Forms",
+            "job_title":            "Client Partner",
+            "job_language":         "en",
+            "cv_output_language":   "en-US",
+            "language_confidence":  "high",
+            "role_type":            "individual_contributor",
+            "role_type_confidence": "high",
+            "role_type_reasoning":  "Standalone BD/client role without team management.",
+            "cv_emphasis":          ["business development", "client acquisition"],
+            "ats_keyword_strategy": {
+                "supported_keywords":   ["B2B", "SaaS"],
+                "adjacent_keywords":    [],
+                "unsupported_keywords": [],
+                "used_keywords":        ["B2B", "SaaS"],
+                "excluded_keywords":    [],
+                "naturalness_notes":    "Keywords woven naturally.",
+            },
+            "experience_gap_analysis": {
+                "title":               "Experience gaps vs. job posting",
+                "text":                "Good overall match.",
+                "confirmed_strengths": ["B2B sales", "SaaS"],
+                "gaps":                [],
+                "transferable_angles": [],
+                "do_not_claim":        [],
+            },
+            "fixed_experience_facts": [],
+        }
+
+    @pytest.fixture
+    def master_cv(self):
+        with open(BASE_DIR / "data" / "master_cv.json", encoding="utf-8") as f:
+            return json.load(f)
+
+    def test_company_name_from_cv_data(self, master_cv):
+        """cv_data['company'] must equal 'Digital Forms'."""
+        cv = self._make_cv_data(master_cv)
+        assert cv["company"] == "Digital Forms"
+
+    def test_job_title_from_cv_data(self, master_cv):
+        """cv_data['job_title'] must equal 'Client Partner'."""
+        cv = self._make_cv_data(master_cv)
+        assert cv["job_title"] == "Client Partner"
+
+    def test_role_type_individual_contributor(self, master_cv):
+        """cv_data['role_type'] must be 'individual_contributor'."""
+        cv = self._make_cv_data(master_cv)
+        assert cv["role_type"] == "individual_contributor"
+
+    def test_role_type_label_correct(self, master_cv):
+        """role_type_label for individual_contributor must be correct."""
+        from src.application_repository import role_type_label
+        cv = self._make_cv_data(master_cv)
+        assert role_type_label(cv["role_type"]) == "Business Development / Client Partner"
+
+    def test_cv_output_language_en_us(self, master_cv):
+        """cv_data['cv_output_language'] must be 'en-US' for English posting."""
+        cv = self._make_cv_data(master_cv)
+        assert cv["cv_output_language"] == "en-US"
+
+
+# ── Test: new API endpoints ───────────────────────────────────────────
+
+class TestNewEndpoints:
+    """Tests for GET /api/applications, POST /api/applications/{id}/contact, etc."""
+
+    @pytest.fixture
+    def client(self):
+        from fastapi.testclient import TestClient
+        import sys
+        sys.path.insert(0, str(BASE_DIR))
+        from main import app
+        return TestClient(app, raise_server_exceptions=False)
+
+    def test_get_applications_db_disabled(self, client, monkeypatch):
+        """GET /api/applications returns database_disabled=False when DB off."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        resp = client.get("/api/applications")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["database_enabled"] is False
+        assert data["items"] == []
+        assert data["reason"] == "database_disabled"
+
+    def test_export_csv_returns_csv_with_headers(self, client, monkeypatch):
+        """GET /api/applications/export.csv returns CSV even when DB disabled."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        resp = client.get("/api/applications/export.csv")
+        assert resp.status_code == 200
+        assert "text/csv" in resp.headers.get("content-type", "")
+        content = resp.text
+        assert "contact_person" in content
+        assert "contact_phone" in content
+        assert "contact_email" in content
+        assert "company_name" in content
+        assert "cv_public_url" in content
+        assert "notes" in content
+
+    def test_post_contact_db_disabled_returns_controlled_response(self, client, monkeypatch):
+        """POST /api/applications/{id}/contact returns controlled response when DB off."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        resp = client.post(
+            "/api/applications/1/contact",
+            json={"contact_person": "Jan Kowalski", "contact_phone": "", "contact_email": ""},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is False
+        assert data["reason"] == "database_disabled"
+
+    def test_post_notes_db_disabled_returns_controlled_response(self, client, monkeypatch):
+        """POST /api/applications/{id}/notes returns controlled response when DB off."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        resp = client.post(
+            "/api/applications/1/notes",
+            json={"notes": "Testowa notatka"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is False
+        assert data["reason"] == "database_disabled"
+
+    def test_export_csv_route_before_id_route(self, client, monkeypatch):
+        """export.csv must not be matched as record_id integer — must return CSV."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        resp = client.get("/api/applications/export.csv")
+        # Must not return 422 (validation error for non-int id) or 404
+        assert resp.status_code == 200
+        assert "text/csv" in resp.headers.get("content-type", "")
+
+
+# ── Test: CSV export content ──────────────────────────────────────────
+
+class TestCSVExport:
+    """Tests for /api/applications/export.csv output."""
+
+    def test_csv_headers_present(self, monkeypatch):
+        """export_csv() must include all required headers."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        from src.application_repository import export_csv, CSV_COLUMNS
+        csv_data = export_csv()
+        header_line = csv_data.split("\n")[0]
+        required = [
+            "contact_person", "contact_phone", "contact_email",
+            "company_name", "job_title", "role_type", "cv_public_url", "notes",
+        ]
+        for col in required:
+            assert col in header_line, f"CSV brakuje kolumny: {col}"
+
+    def test_csv_with_empty_db_has_only_header(self, monkeypatch):
+        """export_csv() returns only header row when DB returns empty list."""
+        monkeypatch.setenv("DB_ENABLED", "false")
+        from src.application_repository import export_csv
+        csv_data = export_csv()
+        lines = [l for l in csv_data.split("\n") if l.strip()]
+        assert len(lines) == 1, "Przy pustej bazie CSV powinien zawierać tylko wiersz nagłówkowy"
+
+
+# ── Test: frontend HTML checks ────────────────────────────────────────
+
+class TestFrontendHTML:
+    """Static checks on static/index.html for dashboard elements."""
+
+    @pytest.fixture(autouse=True)
+    def html(self):
+        html_path = BASE_DIR / "static" / "index.html"
+        self._html = html_path.read_text(encoding="utf-8")
+
+    def test_dashboard_section_exists(self):
+        """index.html must contain Dashboard or Historia CV."""
+        assert "Historia CV" in self._html or "Dashboard" in self._html, \
+            "index.html musi zawierać sekcję 'Historia CV' lub 'Dashboard'"
+
+    def test_contact_person_field_exists(self):
+        assert "contact_person" in self._html, \
+            "index.html musi zawierać 'contact_person'"
+
+    def test_contact_phone_field_exists(self):
+        assert "contact_phone" in self._html, \
+            "index.html musi zawierać 'contact_phone'"
+
+    def test_contact_email_field_exists(self):
+        assert "contact_email" in self._html, \
+            "index.html musi zawierać 'contact_email'"
+
+    def test_api_applications_endpoint_referenced(self):
+        assert "/api/applications" in self._html, \
+            "index.html musi zawierać referencję do '/api/applications'"
+
+    def test_contact_endpoint_referenced(self):
+        assert "/contact" in self._html, \
+            "index.html musi zawierać referencję do '/contact'"
+
+    def test_export_csv_referenced(self):
+        assert "export.csv" in self._html, \
+            "index.html musi zawierać referencję do 'export.csv'"
+
+    def test_save_contact_button_exists(self):
+        assert "Zapisz kontakt" in self._html, \
+            "index.html musi zawierać przycisk 'Zapisz kontakt'"
+
+    def test_save_notes_button_exists(self):
+        assert "Zapisz notatkę" in self._html, \
+            "index.html musi zawierać przycisk 'Zapisz notatkę'"
+
+    def test_record_id_passed_to_send_email(self):
+        assert "record_id" in self._html, \
+            "index.html musi przekazywać 'record_id' do send-email"
