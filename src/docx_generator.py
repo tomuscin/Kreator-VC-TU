@@ -99,6 +99,20 @@ def _build_doc(cv_data: dict) -> Document:
     r2.font.color.rgb = COLOR_LIGHT
     r2.font.name = FONT_NAME
 
+    # ── Job title (from posting) ─────────────────────────────────────
+    # Rendered between contact line and first CV section (if present)
+    job_title = cv_data.get("job_title", "").strip()
+    if job_title:
+        p_jt = doc.add_paragraph()
+        p_jt.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_jt.paragraph_format.space_before = Pt(12)
+        p_jt.paragraph_format.space_after  = Pt(12)
+        r_jt = p_jt.add_run(job_title.upper())
+        r_jt.bold = True
+        r_jt.font.size = Pt(18)
+        r_jt.font.color.rgb = COLOR_ACCENT   # same as name — dark navy
+        r_jt.font.name = FONT_NAME
+
     _add_divider(doc)
 
     lang = cv_data.get("cv_output_language", "pl")

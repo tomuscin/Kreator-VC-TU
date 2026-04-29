@@ -1449,3 +1449,180 @@ class TestDocxLocalization:
         bare_typo = re.findall(r"['\"`]xperience gaps", html, re.IGNORECASE)
         assert not bare_typo, \
             f"index.html zawiera literówkę 'xperience gaps' jako literal: {bare_typo}"
+
+
+# ── Tests: job_title heading in DOCX ─────────────────────────────────
+
+class TestJobTitleInDocx:
+    """Tests verifying job_title is rendered correctly in generated DOCX."""
+
+    @pytest.fixture
+    def master_cv(self):
+        import json
+        with open("data/master_cv.json", encoding="utf-8") as f:
+            return json.load(f)
+
+    def _build_cv(self, master_cv: dict, lang: str, job_title: str = "") -> dict:
+        rodo = (
+            master_cv.get("rodo_clause_en", "")
+            if lang == "en-US"
+            else master_cv.get("rodo_clause", "")
+        )
+        return {
+            "personal": master_cv["personal"],
+            "education": master_cv["education"],
+            "languages": master_cv["languages"],
+            "interests": master_cv.get("interests", ""),
+            "rodo_clause": rodo,
+            "summary": "Test summary." if lang == "en-US" else "Testowe podsumowanie.",
+            "competencies": ["B2B Sales"] if lang == "en-US" else ["Sprzedaż B2B"],
+            "experience": [],
+            "ats_keywords": [],
+            "cv_output_language": lang,
+            "fixed_experience_facts": [],
+            "job_title": job_title,
+        }
+
+    def test_job_title_uppercased_in_docx_en(self, master_cv):
+        """DOCX with job_title='Client Partner' must contain 'CLIENT PARTNER'."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US", "Client Partner")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_jt_en.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "CLIENT PARTNER" in text, "DOCX musi zawierać 'CLIENT PARTNER'"
+
+    def test_job_title_uppercased_in_docx_pl(self, master_cv):
+        """DOCX with job_title='Dyrektor Sprzedaży' must contain 'DYREKTOR SPRZEDAŻY'."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "pl", "Dyrektor Sprzedaży")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_jt_pl.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            assert "DYREKTOR SPRZEDAŻY" in text, "DOCX musi zawierać 'DYREKTOR SPRZEDAŻY'"
+
+    def test_empty_job_title_no_blank_paragraph(self, master_cv):
+        """DOCX with empty job_title must not insert a blank job-title paragraph."""
+        from docx import Document
+        from docx.shared import Pt
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US", "")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_jt_empty.docx"
+            generate_cv_docx(cv, out)
+            doc = Document(str(out))
+            for p in doc.paragraphs:
+                for run in p.runs:
+                    if run.font.size and run.font.size == Pt(18) and not p.text.strip():
+                        pytest.fail("DOCX zawiera pusty akapit w miejscu job_title (Pt 18)")
+
+    def test_missing_job_title_key_no_crash(self, master_cv):
+        """DOCX generation must not crash when job_title key is absent from cv_data."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US", "")
+        del cv["job_title"]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_jt_missing.docx"
+            generate_cv_docx(cv, out)  # must not raise
+
+    def test_job_title_before_professional_summary(self, master_cv):
+        """CLIENT PARTNER must appear before PROFESSIONAL SUMMARY in DOCX text."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US", "Client Partner")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_jt_order_en.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            idx_jt = text.index("CLIENT PARTNER")
+            idx_ps = text.index("PROFESSIONAL SUMMARY")
+            assert idx_jt < idx_ps, "'CLIENT PARTNER' musi wystąpić przed 'PROFESSIONAL SUMMARY'"
+
+    def test_job_title_before_podsumowanie(self, master_cv):
+        """DYREKTOR SPRZEDAŻY must appear before PODSUMOWANIE ZAWODOWE."""
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "pl", "Dyrektor Sprzedaży")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_jt_order_pl.docx"
+            generate_cv_docx(cv, out)
+            text = _docx_full_text(out)
+            idx_jt = text.index("DYREKTOR SPRZEDAŻY")
+            idx_ps = text.index("PODSUMOWANIE ZAWODOWE")
+            assert idx_jt < idx_ps, "'DYREKTOR SPRZEDAŻY' musi wystąpić przed 'PODSUMOWANIE ZAWODOWE'"
+
+    def test_job_title_font_size_and_bold(self, master_cv):
+        """Job title run must be Calibri 18 pt bold."""
+        from docx import Document
+        from docx.shared import Pt
+        from src.docx_generator import generate_cv_docx
+        cv = self._build_cv(master_cv, "en-US", "Client Partner")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "test_jt_style.docx"
+            generate_cv_docx(cv, out)
+            doc = Document(str(out))
+            found = False
+            for p in doc.paragraphs:
+                if "CLIENT PARTNER" in p.text:
+                    for run in p.runs:
+                        if "CLIENT PARTNER" in run.text:
+                            assert run.bold, "job_title run musi być bold"
+                            assert run.font.size == Pt(18), f"job_title font size musi być 18 pt, jest {run.font.size}"
+                            assert run.font.name == "Calibri", f"job_title font musi być Calibri, jest {run.font.name}"
+                            found = True
+            assert found, "Nie znaleziono runu z 'CLIENT PARTNER' w dokumencie"
+
+    def test_revise_preserves_job_title(self, master_cv):
+        """revise_full_cv must preserve job_title from the original CV."""
+        import json
+        import unittest.mock as mock
+        from src.cv_adapter import revise_full_cv
+        current_cv = {
+            "personal": master_cv["personal"],
+            "education": master_cv["education"],
+            "languages": master_cv["languages"],
+            "interests": "",
+            "rodo_clause": "",
+            "summary": "Experienced sales professional.",
+            "competencies": ["B2B Sales"],
+            "experience": [],
+            "ats_keywords": [],
+            "cv_output_language": "en-US",
+            "fixed_experience_facts": [],
+            "job_title": "Client Partner",
+            "company": "Digital Forms",
+            "job_language": "en",
+            "language_confidence": "high",
+            "role_type": "individual_contributor",
+            "role_type_confidence": "high",
+            "role_type_reasoning": "IC role.",
+            "cv_emphasis": [],
+            "match_score": 80,
+            "match_notes": "",
+            "covered_requirements": [],
+            "gaps": [],
+            "ats_report": {"used": [], "not_used": []},
+            "ats_keyword_strategy": {
+                "supported_keywords": [], "adjacent_keywords": [], "unsupported_keywords": [],
+                "used_keywords": [], "excluded_keywords": [], "naturalness_notes": "",
+            },
+            "experience_gap_analysis": {
+                "title": "Experience gaps vs. job posting",
+                "text": "", "confirmed_strengths": [], "gaps": [],
+                "transferable_angles": [], "do_not_claim": [],
+            },
+        }
+        # The LLM response keeps job_title unchanged (setdefault ensures it)
+        fake_revised = dict(current_cv)
+        fake_revised["summary"] = "Short summary. Two sentences."
+        with mock.patch("src.cv_adapter.chat") as mock_chat:
+            mock_resp = mock.MagicMock()
+            mock_resp.choices[0].message.content = json.dumps(fake_revised)
+            mock_chat.return_value = mock_resp
+            result = revise_full_cv(
+                current_cv=current_cv,
+                instruction="Skróć podsumowanie do 2 zdań.",
+                job_posting="Client Partner at Digital Forms. B2B sales role.",
+            )
+        assert result.get("job_title") == "Client Partner", \
+            f"revise_full_cv musi zachować job_title='Client Partner', got: {result.get('job_title')}"

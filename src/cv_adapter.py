@@ -681,6 +681,7 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
 
 ## ZASADY (bezwzględne):
 - NIE zmieniaj title ani dates w experience — skopiuj dokładnie z wejścia
+- Preserve job_title from the original job posting unless the user explicitly asks to change it. Do not add company name, location or decorative wording to job_title.
 - NIE dodawaj nowych stanowisk, firm, liczb ani osiągnięć których nie ma w wejściu
 - NIE wymyślaj kompetencji ani doświadczeń spoza profilu bazowego
 - Zastosuj instrukcję użytkownika do treści
@@ -728,6 +729,9 @@ def revise_full_cv(current_cv: dict, instruction: str, job_posting: str) -> dict
         "supported_keywords": [], "adjacent_keywords": [], "unsupported_keywords": [],
         "used_keywords": [], "excluded_keywords": [], "naturalness_notes": "",
     }))
+    # Always preserve job_title from the original adapt_cv — user must explicitly request a change
+    result.setdefault("job_title", current_cv.get("job_title", ""))
+    result.setdefault("company",   current_cv.get("company", ""))
     # Preserve or update experience_gap_analysis — if LLM returned one, validate it;
     # otherwise carry forward from current_cv
     if "experience_gap_analysis" in revised and isinstance(revised["experience_gap_analysis"], dict):
