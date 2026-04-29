@@ -67,21 +67,27 @@ def make_remote_filename(
     suffix: str = "",
 ) -> str:
     """
-    Creates a safe FTP filename without Polish chars or special characters.
+    Creates a human-readable FTP filename matching the local download name.
 
     Example:
-      CV_Tomasz_Uscinski_Client_Partner_Digital_Forms_2026-04-28_a3f2.docx
+      CV Tomasz Uściński Client Partner - Technology Executive INSPEERITY sp. z o.o. 2026-04-29.docx
+
+    Note: '/' in job_title replaced with '-' (FTP path separator safety).
+    Suffix appended when provided (collision avoidance).
     """
     date_part = (date_str or datetime.utcnow().strftime("%Y-%m-%d")).replace(".", "-")
-    parts = ["CV", "Tomasz_Uscinski"]
-    if job_title:
-        parts.append(_sanitize_part(job_title, 28))
-    if company_name:
-        parts.append(_sanitize_part(company_name, 28))
+    safe_title   = (job_title or "").strip().replace("/", "-")
+    safe_company = (company_name or "").strip()
+    parts = ["CV", "Tomasz Uściński"]
+    if safe_title:
+        parts.append(safe_title)
+    if safe_company:
+        parts.append(safe_company)
     parts.append(date_part)
+    base = " ".join(filter(None, parts))
     if suffix:
-        parts.append(suffix)
-    return "_".join(filter(None, parts)) + ".docx"
+        base = f"{base}_{suffix}"
+    return base + ".docx"
 
 
 def make_remote_path(

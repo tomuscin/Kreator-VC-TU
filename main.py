@@ -533,7 +533,7 @@ def _slugify(text: str, max_len: int = 28) -> str:
 def _make_filename(job_title: str = "", company: str = "") -> str:
     """CV Tomasz Uściński {job_title} {YYYY.MM.DD}.docx — date is always today."""
     today = date.today().strftime("%Y.%m.%d")
-    primary = (job_title or company or "").strip()
+    primary = (job_title or company or "").strip().replace("/", "-")
     parts = ["CV", "Tomasz Uściński"]
     if primary:
         parts.append(primary)

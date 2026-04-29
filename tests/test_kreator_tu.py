@@ -1766,47 +1766,40 @@ class TestStorageModule:
         assert "/2026/04/CV_test.docx" in path
         assert path.startswith("/cv-kreator/generated")
 
-    def test_make_remote_filename_sanitizes_polish_chars(self):
-        """make_remote_filename must remove Polish diacritics."""
+    def test_make_remote_filename_sanitizes_slash(self):
+        """make_remote_filename must replace '/' with '-' (FTP path separator safety)."""
         from src.storage import make_remote_filename
         fname = make_remote_filename(
-            job_title="Dyrektor Sprzedaży",
-            company_name="Próbna Firma",
-            date_str="2026-04-28",
+            job_title="Client Partner / Technology Executive",
+            company_name="INSPEERITY sp. z o.o.",
+            date_str="2026-04-29",
         )
-        assert "ż" not in fname
-        assert "ó" not in fname
+        assert "/" not in fname.split(".docx")[0], \
+            f"Filename must not contain '/' in the name part: {fname}"
+        assert "-" in fname or "Technology Executive" in fname
         assert fname.endswith(".docx")
 
     def test_make_remote_filename_contains_company_and_title(self):
-        """Filename must contain sanitized company and job title parts."""
+        """Filename must contain company and job title parts (human-readable)."""
         from src.storage import make_remote_filename
         fname = make_remote_filename(
             job_title="Client Partner",
             company_name="Digital Forms",
             date_str="2026-04-28",
         )
-        assert "Client_Partner" in fname
-        assert "Digital_Forms" in fname
+        assert "Client Partner" in fname
+        assert "Digital Forms" in fname
         assert "2026-04-28" in fname
-        assert fname.startswith("CV_Tomasz_Uscinski")
+        assert fname.startswith("CV Tomasz Uściński")
 
-    def test_make_remote_filename_no_special_chars(self):
-        """Filename must not contain special characters (except underscores, hyphens, dots)."""
-        import re
+    def test_make_remote_filename_no_forward_slash(self):
+        """Filename must not contain '/' which would break FTP STOR paths."""
         from src.storage import make_remote_filename
-        fname = make_remote_filename("Sales & Marketing Lead", "Company (Ltd.)", "2026-01-15")
-        # Allow: letters, digits, underscores, hyphens, dots
-        assert re.match(r'^[A-Za-z0-9_.\-]+$', fname), \
-            f"Filename contains invalid chars: {fname}"
-
-    def test_sanitize_part_removes_special_chars(self):
-        """_sanitize_part helper removes special chars."""
-        from src.storage import _sanitize_part
-        result = _sanitize_part("Hello & World (2026)")
-        assert "&" not in result
-        assert "(" not in result
-        assert ")" not in result
+        fname = make_remote_filename("Sales / Marketing Lead", "Company Ltd.", "2026-01-15")
+        name_part = fname.replace(".docx", "")
+        assert "/" not in name_part, \
+            f"Filename name part must not contain '/': {fname}"
+        assert fname.endswith(".docx")
 
 
 # ── Test: metadata from cv_data ───────────────────────────────────────
