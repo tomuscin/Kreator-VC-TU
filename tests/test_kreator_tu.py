@@ -2038,3 +2038,118 @@ class TestFrontendHTML:
     def test_record_id_passed_to_send_email(self):
         assert "record_id" in self._html, \
             "index.html musi przekazywać 'record_id' do send-email"
+
+
+# ── Test: FTP configuration in .env.example ──────────────────────────
+
+class TestFTPConfiguration:
+    """Tests verifying FTP config in .env.example and storage.py behaviour."""
+
+    @pytest.fixture(autouse=True)
+    def env_example(self):
+        env_path = BASE_DIR / ".env.example"
+        self._env = env_path.read_text(encoding="utf-8")
+
+    # ── .env.example content checks ──────────────────────────────────
+
+    def test_env_example_ftp_host(self):
+        assert "FTP_HOST=ftp.tomuscin.webd.pro" in self._env, \
+            ".env.example musi zawierać FTP_HOST=ftp.tomuscin.webd.pro"
+
+    def test_env_example_ftp_user(self):
+        assert "FTP_USER=tomasz@lexaro.co" in self._env, \
+            ".env.example musi zawierać FTP_USER=tomasz@lexaro.co"
+
+    def test_env_example_ftp_port(self):
+        assert "FTP_PORT=21" in self._env, \
+            ".env.example musi zawierać FTP_PORT=21"
+
+    def test_env_example_ftp_enabled_false(self):
+        """FTP_ENABLED w .env.example musi być false (plik przykładowy)."""
+        assert "FTP_ENABLED=false" in self._env, \
+            ".env.example musi zawierać FTP_ENABLED=false (domyślnie wyłączone)"
+
+    def test_env_example_no_ftp_password(self):
+        """Hasło FTP musi być puste — nigdy nie commituj hasła."""
+        import re
+        # FTP_PASSWORD= must exist but with no value after =
+        matches = re.findall(r"^FTP_PASSWORD=(.+)$", self._env, re.MULTILINE)
+        assert not matches, \
+            f".env.example nie może zawierać wartości FTP_PASSWORD: {matches}"
+
+    def test_env_example_ftp_base_dir(self):
+        assert "FTP_BASE_DIR=/cv-kreator/generated" in self._env, \
+            ".env.example musi zawierać FTP_BASE_DIR=/cv-kreator/generated"
+
+    # ── storage.py disabled behaviour ────────────────────────────────
+
+    def test_ftp_disabled_no_upload_attempted(self, monkeypatch):
+        """When FTP_ENABLED=false, upload_docx must not attempt connection."""
+        monkeypatch.setenv("FTP_ENABLED", "false")
+        import ftplib
+        from unittest import mock
+        with mock.patch.object(ftplib.FTP, "connect") as mock_connect:
+            from src.storage import upload_docx
+            result = upload_docx("/tmp/does_not_exist.docx")
+            mock_connect.assert_not_called()
+        assert result["ok"] is False
+        assert result["reason"] == "disabled"
+
+    def test_ftp_missing_password_no_upload(self, monkeypatch):
+        """When FTP_ENABLED=true but FTP_PASSWORD empty, upload returns disabled."""
+        monkeypatch.setenv("FTP_ENABLED", "true")
+        monkeypatch.setenv("FTP_HOST", "ftp.tomuscin.webd.pro")
+        monkeypatch.setenv("FTP_USER", "tomasz@lexaro.co")
+        monkeypatch.setenv("FTP_PASSWORD", "")
+        import importlib
+        import src.storage as storage
+        importlib.reload(storage)
+        result = storage.upload_docx("/tmp/does_not_exist.docx")
+        assert result["ok"] is False
+
+    # ── remote path structure ─────────────────────────────────────────
+
+    def test_remote_path_uses_cv_kreator_base(self):
+        """make_remote_path must use /cv-kreator/generated as base."""
+        from datetime import datetime
+        from src.storage import make_remote_path
+        now = datetime(2026, 4, 29, 12, 0, 0)
+        path = make_remote_path("/cv-kreator/generated", "CV_test.docx", now)
+        assert path.startswith("/cv-kreator/generated"), \
+            f"Remote path musi zaczynać się od /cv-kreator/generated: {path}"
+
+    def test_remote_path_yyyy_mm_structure(self):
+        """make_remote_path must use YYYY/MM subdirectory structure."""
+        from datetime import datetime
+        from src.storage import make_remote_path
+        now = datetime(2026, 4, 29, 12, 0, 0)
+        path = make_remote_path("/cv-kreator/generated", "CV_test.docx", now)
+        assert "/2026/04/CV_test.docx" in path, \
+            f"Remote path musi zawierać /YYYY/MM/: {path}"
+
+    def test_ftp_port_read_from_env(self, monkeypatch):
+        """FTP_PORT from env must be used in connection config."""
+        monkeypatch.setenv("FTP_ENABLED", "true")
+        monkeypatch.setenv("FTP_HOST", "ftp.tomuscin.webd.pro")
+        monkeypatch.setenv("FTP_USER", "tomasz@lexaro.co")
+        monkeypatch.setenv("FTP_PASSWORD", "testpass")
+        monkeypatch.setenv("FTP_PORT", "21")
+        import importlib
+        import src.storage as storage
+        importlib.reload(storage)
+        cfg = storage._ftp_config()
+        assert cfg is not None
+        assert cfg["port"] == 21, f"FTP port musi być 21, got: {cfg['port']}"
+
+    # ── .gitignore check ─────────────────────────────────────────────
+
+    def test_gitignore_excludes_dot_env(self):
+        """.gitignore musi zawierać .env."""
+        gitignore_path = BASE_DIR / ".gitignore"
+        assert gitignore_path.exists(), ".gitignore musi istnieć"
+        content = gitignore_path.read_text(encoding="utf-8")
+        import re
+        # Match .env as a standalone line (not .env.example)
+        lines = [l.strip() for l in content.splitlines()]
+        assert ".env" in lines, \
+            ".gitignore musi zawierać '.env' jako osobną linię"
