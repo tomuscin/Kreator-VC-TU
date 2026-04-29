@@ -232,6 +232,7 @@ async def adapt_stream(data: AdaptRequest):
     Streaming version of /api/adapt using Server-Sent Events.
     Sends an immediate 'started' event to prevent Render 30s timeout,
     then runs adapt_cv in a thread pool and sends the result when done.
+    Times out after 90 seconds and returns a controlled error event.
     """
     if len(data.job_posting) < 50:
         raise HTTPException(status_code=400, detail="Treść ogłoszenia jest za krótka.")
@@ -241,17 +242,42 @@ async def adapt_stream(data: AdaptRequest):
         yield 'data: {"status":"started"}\n\n'
         loop = asyncio.get_event_loop()
         try:
-            adapted = await loop.run_in_executor(
-                None,
-                lambda: adapt_cv(data.job_posting, master_cv=data.edited_cv),
+            adapted = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: adapt_cv(data.job_posting, master_cv=data.edited_cv),
+                ),
+                timeout=90.0,
             )
             result = _json_mod.dumps(
                 {"status": "done", "adapted_cv": adapted}, ensure_ascii=False
             )
             yield f"data: {result}\n\n"
-        except (ValueError, RuntimeError) as exc:
+        except asyncio.TimeoutError:
             err = _json_mod.dumps(
-                {"status": "error", "detail": str(exc)}, ensure_ascii=False
+                {"status": "error", "detail": "Generowanie CV przekroczyło limit czasu (90s). Spróbuj ponownie."},
+                ensure_ascii=False,
+            )
+            yield f"data: {err}\n\n"
+        except (ValueError, RuntimeError) as exc:
+            msg = str(exc)
+            # Translate common OpenAI API errors to readable Polish messages
+            if "rate_limit" in msg.lower() or "rate limit" in msg.lower():
+                msg = "Limit zapytań OpenAI wyczerpany. Poczekaj chwilę i spróbuj ponownie."
+            elif "context_length" in msg.lower() or "token" in msg.lower() and "exceed" in msg.lower():
+                msg = "Ogłoszenie jest zbyt długie dla modelu AI. Spróbuj skrócić treść ogłoszenia."
+            elif "connection" in msg.lower() or "timeout" in msg.lower():
+                msg = "Problem z połączeniem do OpenAI. Sprawdź internet i spróbuj ponownie."
+            elif "authentication" in msg.lower() or "api_key" in msg.lower() or "unauthorized" in msg.lower():
+                msg = "Błąd uwierzytelnienia OpenAI. Skontaktuj się z administratorem."
+            elif "insufficient_quota" in msg.lower() or "quota" in msg.lower():
+                msg = "Wyczerpany limit OpenAI (brak środków na koncie). Skontaktuj się z administratorem."
+            err = _json_mod.dumps({"status": "error", "detail": msg}, ensure_ascii=False)
+            yield f"data: {err}\n\n"
+        except Exception as exc:
+            err = _json_mod.dumps(
+                {"status": "error", "detail": f"Nieoczekiwany błąd: {type(exc).__name__}"},
+                ensure_ascii=False,
             )
             yield f"data: {err}\n\n"
 

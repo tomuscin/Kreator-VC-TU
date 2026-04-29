@@ -192,6 +192,31 @@
     .status.error   { background: #FEF2F2; color: var(--red); }
     .status.loading { background: #F5F5F5; color: var(--grey); }
 
+    .status-progress {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .status-progress-bar {
+      height: 100%;
+      background: var(--navy);
+      border-radius: 2px;
+      animation: progress-indeterminate 1.6s ease-in-out infinite;
+      transform-origin: left;
+    }
+    @keyframes progress-indeterminate {
+      0%   { transform: translateX(-100%) scaleX(0.4); }
+      50%  { transform: translateX(60%)   scaleX(0.6); }
+      100% { transform: translateX(200%)  scaleX(0.4); }
+    }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
     .hidden { display: none !important; }
 
     .spinner {
@@ -597,6 +622,11 @@
   let jobDate     = '';  // YYYY-MM-DD from date input
   let currentRecordId = null;  // DB record id from generate-docx
 
+  // ── Guards — prevent duplicate calls ──────────────────────────────
+  let _cvGenerating   = false;  // true while generateCV() is running
+  let _docxGenerating = false;  // true while generateDocx() is running
+  let _emailSending   = false;  // true while sendEmail() is running
+
   // ── Tab switching ──────────────────────────────────────────────────
   function showTab(tab) {
     document.getElementById('section-kreator').classList.toggle('hidden', tab !== 'kreator');
@@ -974,7 +1004,26 @@
 
   // ── Step 2: generate adapted CV (SSE streaming — avoids 30s timeout) ──
   async function generateCV() {
-    showStatus('status-adapt', 'Łączę z modelem AI...', 'loading');
+    if (_cvGenerating) return;  // block duplicate clicks
+    _cvGenerating = true;
+
+    const btn = document.querySelector('#card-analysis .btn-navy');
+    if (btn) btn.disabled = true;
+
+    const steps = [
+      'Łączę z modelem AI...',
+      'Model AI analizuje ogłoszenie i dobiera treści CV...',
+      'Generuję dopasowane CV — proszę czekać (może zająć 30-60s)...',
+    ];
+    let stepIdx = 0;
+    showStatus('status-adapt', steps[stepIdx], 'loading');
+
+    // Cycle progress messages so user knows app is working
+    const stepTimer = setInterval(() => {
+      stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+      showStatus('status-adapt', steps[stepIdx], 'loading');
+    }, 8000);
+
     try {
       const resp = await fetch('/api/adapt-stream', {
         method: 'POST',
@@ -982,8 +1031,8 @@
         body: JSON.stringify({ job_posting: jobPosting }),
       });
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
-        throw new Error(err.detail || resp.statusText);
+        const err = await resp.json().catch(() => ({ detail: `Błąd serwera (HTTP ${resp.status})` }));
+        throw new Error(err.detail || `Błąd serwera (HTTP ${resp.status})`);
       }
       const reader  = resp.body.getReader();
       const decoder = new TextDecoder();
@@ -994,22 +1043,32 @@
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const chunks = buffer.split('\n\n');
-        buffer = chunks.pop();  // keep incomplete last chunk
+        buffer = chunks.pop();
         for (const chunk of chunks) {
           const line = chunk.trim();
           if (!line.startsWith('data:')) continue;
-          const payload = JSON.parse(line.slice(5).trim());
+          let payload;
+          try { payload = JSON.parse(line.slice(5).trim()); }
+          catch { continue; }
+
           if (payload.status === 'started') {
-            showStatus('status-adapt', 'Model AI generuje CV — proszę czekać (30-60s)...', 'loading');
+            clearInterval(stepTimer);
+            showStatus('status-adapt', 'Model AI generuje CV — proszę czekać...', 'loading');
           } else if (payload.status === 'done') {
+            clearInterval(stepTimer);
             _applyAdaptedCV(payload.adapted_cv);
           } else if (payload.status === 'error') {
+            clearInterval(stepTimer);
             throw new Error(payload.detail || 'Nieznany błąd adaptacji CV');
           }
         }
       }
     } catch(e) {
-      showStatus('status-adapt', e.message, 'error');
+      clearInterval(stepTimer);
+      showStatus('status-adapt', `<strong>Błąd:</strong> ${e.message}`, 'error');
+    } finally {
+      _cvGenerating = false;
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -1266,8 +1325,13 @@
 
   // ── Step 3: Generate .docx ────────────────────────────────────────
   async function generateDocx() {
+    if (_docxGenerating) return;  // block duplicate clicks
     const edited = collectEditedCV();
     if (!edited) return;
+
+    _docxGenerating = true;
+    const btn = document.querySelector('#card-preview .row .btn-navy');
+    if (btn) btn.disabled = true;
 
     jobTitle = document.getElementById('field-job-title').value.trim();
     company  = document.getElementById('field-company').value.trim();
@@ -1297,18 +1361,26 @@
       document.getElementById('card-send').classList.remove('hidden');
       document.getElementById('card-send').scrollIntoView({ behavior: 'smooth' });
     } catch(e) {
-      showStatus('status-docx', e.message, 'error');
+      showStatus('status-docx', `<strong>Błąd:</strong> ${e.message}`, 'error');
+    } finally {
+      _docxGenerating = false;
+      if (btn) btn.disabled = false;
     }
   }
 
   // ── Step 4: Send email ────────────────────────────────────────────
   async function sendEmail() {
+    if (_emailSending) return;  // block duplicate clicks
     const to      = document.getElementById('to-email').value.trim();
     const subject = document.getElementById('email-subject').value.trim();
     if (!to) { showStatus('status-send', 'Podaj adres email odbiorcy.', 'error'); return; }
 
     const edited = collectEditedCV();
     if (!edited) return;
+
+    _emailSending = true;
+    const btnSend = document.querySelector('#card-send .btn-navy');
+    if (btnSend) btnSend.disabled = true;
 
     showStatus('status-send', 'Wysyłam email...', 'loading');
     try {
@@ -1325,7 +1397,10 @@
       });
       showStatus('status-send', `Email wysłany na ${to} ✓`, 'success');
     } catch(e) {
-      showStatus('status-send', e.message, 'error');
+      showStatus('status-send', `<strong>Błąd:</strong> ${e.message}`, 'error');
+    } finally {
+      _emailSending = false;
+      if (btnSend) btnSend.disabled = false;
     }
   }
 
@@ -1369,9 +1444,11 @@
     if (!el) return;
     if (type === 'hidden' || !msg) { el.className = 'status hidden'; return; }
     el.className = `status ${type}`;
-    el.innerHTML = type === 'loading'
-      ? `<span class="spinner"></span>${msg}`
-      : msg;
+    if (type === 'loading') {
+      el.innerHTML = `<span class="spinner"></span>${msg}<div class="status-progress"><div class="status-progress-bar"></div></div>`;
+    } else {
+      el.innerHTML = msg;
+    }
   }
 
   function setStep(n) {
