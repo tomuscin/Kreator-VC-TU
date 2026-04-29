@@ -19,11 +19,11 @@ services:
       - key: SMTP_PORT
         value: "587"
       - key: SMTP_USER
-        value: tomasz@tomaszuscinski.pl
+        sync: false          # uscinski.tomek@gmail.com — wpisz ręcznie
       - key: SMTP_PASSWORD
-        sync: false          # wpisz ręcznie w Render dashboard
+        sync: false          # Gmail App Password (16 znaków) — wpisz ręcznie
       - key: SMTP_FROM
-        value: tomasz@tomaszuscinski.pl
+        value: uscinski.tomek@gmail.com
       - key: SMTP_FROM_NAME
         value: "Tomasz Uściński"
       - key: APP_USERNAME
