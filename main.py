@@ -148,7 +148,7 @@ async def test_smtp(_: str = Depends(lambda: None)):
     """Diagnostic: test SMTP connectivity and credentials from Render's server."""
     import smtplib, ssl, socket
     import certifi
-    from src.email_sender import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
+    from src.email_sender import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, _smtp_ssl_context
     result = {
         "host": SMTP_HOST,
         "port": SMTP_PORT,
@@ -162,7 +162,7 @@ async def test_smtp(_: str = Depends(lambda: None)):
         result["tcp_connect"] = f"BŁĄD: {e}"
         return result
     try:
-        ctx = ssl.create_default_context(cafile=certifi.where())
+        ctx = _smtp_ssl_context()
         with socket.create_connection((SMTP_HOST, SMTP_PORT), timeout=8) as sock:
             with ctx.wrap_socket(sock, server_hostname=SMTP_HOST):
                 result["ssl_handshake"] = "ok"
@@ -170,7 +170,7 @@ async def test_smtp(_: str = Depends(lambda: None)):
         result["ssl_handshake"] = f"BŁĄD: {e}"
         return result
     try:
-        ctx = ssl.create_default_context(cafile=certifi.where())
+        ctx = _smtp_ssl_context()
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx, timeout=8) as server:
             server.login(SMTP_USER, SMTP_PASSWORD)
             result["smtp_login"] = "ok"

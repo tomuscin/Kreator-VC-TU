@@ -18,12 +18,25 @@ load_dotenv()
 
 # Use .get() with defaults — KeyError at import time crashes the whole app on Render.
 # Missing critical vars are caught lazily inside send_cv().
-SMTP_HOST      = os.environ.get("SMTP_HOST", "mail.tomaszuscinski.pl")
-SMTP_PORT      = int(os.environ.get("SMTP_PORT", "465"))
-SMTP_USER      = os.environ.get("SMTP_USER", "tomasz@tomaszuscinski.pl")
-SMTP_PASSWORD  = os.environ.get("SMTP_PASSWORD", "")
-SMTP_FROM      = os.environ.get("SMTP_FROM", SMTP_USER)
-SMTP_FROM_NAME = os.environ.get("SMTP_FROM_NAME", "Tomasz Uściński")
+SMTP_HOST        = os.environ.get("SMTP_HOST", "mail.tomaszuscinski.pl")
+SMTP_PORT        = int(os.environ.get("SMTP_PORT", "465"))
+SMTP_USER        = os.environ.get("SMTP_USER", "tomasz@tomaszuscinski.pl")
+SMTP_PASSWORD    = os.environ.get("SMTP_PASSWORD", "")
+SMTP_FROM        = os.environ.get("SMTP_FROM", SMTP_USER)
+SMTP_FROM_NAME   = os.environ.get("SMTP_FROM_NAME", "Tomasz Uściński")
+# Set SMTP_VERIFY_SSL=false when the mail server uses a wildcard cert (e.g. *.webd.pl)
+# that doesn't match the configured SMTP_HOST (common on shared hosting).
+SMTP_VERIFY_SSL  = os.environ.get("SMTP_VERIFY_SSL", "true").lower() != "false"
+
+
+def _smtp_ssl_context() -> ssl.SSLContext:
+    """Return an SSL context respecting SMTP_VERIFY_SSL."""
+    if SMTP_VERIFY_SSL:
+        return ssl.create_default_context(cafile=certifi.where())
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
 
 
 def send_cv(
@@ -77,7 +90,7 @@ def send_cv(
     outer.attach(msg)
     outer.attach(attachment)
 
-    context = ssl.create_default_context(cafile=certifi.where())
+    context = _smtp_ssl_context()
     try:
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=30) as server:
             server.login(SMTP_USER, SMTP_PASSWORD)
@@ -104,7 +117,7 @@ def test_connection() -> bool:
         smtplib.SMTPAuthenticationError: On bad credentials.
         smtplib.SMTPException: On other SMTP errors.
     """
-    context = ssl.create_default_context(cafile=certifi.where())
+    context = _smtp_ssl_context()
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
         server.login(SMTP_USER, SMTP_PASSWORD)
     return True
