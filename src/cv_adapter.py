@@ -369,15 +369,16 @@ Zwróć TYLKO poprawny JSON zgodny z tym schematem:
 """.strip()
 
     # fast=True uses the mini model (3-4× faster) — used by the SSE streaming endpoint
-    # to avoid gateway timeouts. max_completion_tokens=3500 is enough: CV output
-    # rarely exceeds ~2 000 tokens; the extra head-room handles verbose gap analysis.
+    # to avoid gateway timeouts. max_completion_tokens=5500 is enough: CV JSON output
+    # peaks around ~4 000 tokens for verbose responses; 5 500 gives safe headroom
+    # without approaching the previous 8 000 value that caused 90s+ timeouts.
     response = chat(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
         model=MINI_MODEL if fast else None,
-        max_completion_tokens=3500,
+        max_completion_tokens=5500,
     )
 
     raw = (response.choices[0].message.content or "").strip()
