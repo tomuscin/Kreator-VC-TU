@@ -2146,3 +2146,229 @@ class TestFTPConfiguration:
         lines = [l.strip() for l in content.splitlines()]
         assert ".env" in lines, \
             ".gitignore musi zawierać '.env' jako osobną linię"
+
+
+# ── Tests: email sender ───────────────────────────────────────────────
+
+class TestEmailSender:
+    """Unit tests for src/email_sender.py — all SMTP calls mocked."""
+
+    DUMMY_BYTES    = b"PK\x03\x04fakecontent"  # minimal fake docx bytes
+    DUMMY_FILENAME = "CV_Tomasz_Uscinski.docx"
+
+    def _call_send_cv(self, monkeypatch, *, smtp_side_effect=None, smtp_user="user@example.com", smtp_password="secret"):
+        """Helper: call send_cv with mocked SMTP_SSL."""
+        import smtplib
+        from unittest import mock
+        import src.email_sender as em
+
+        monkeypatch.setattr(em, "SMTP_USER",     smtp_user)
+        monkeypatch.setattr(em, "SMTP_PASSWORD", smtp_password)
+        monkeypatch.setattr(em, "SMTP_FROM",     smtp_user)
+        monkeypatch.setattr(em, "SMTP_HOST",     "smtp.gmail.com")
+        monkeypatch.setattr(em, "SMTP_PORT",     465)
+
+        mock_server = mock.MagicMock()
+        if smtp_side_effect:
+            mock_server.__enter__ = mock.Mock(side_effect=smtp_side_effect)
+        else:
+            mock_server.__enter__ = mock.Mock(return_value=mock_server)
+            mock_server.__exit__  = mock.Mock(return_value=False)
+
+        with mock.patch("smtplib.SMTP_SSL", return_value=mock_server) as mock_ssl:
+            from src.email_sender import send_cv
+            return send_cv(
+                to="recipient@example.com",
+                subject="Test subject",
+                body_html="<p>Test</p>",
+                docx_bytes=self.DUMMY_BYTES,
+                docx_filename=self.DUMMY_FILENAME,
+            ), mock_ssl, mock_server
+
+    def test_send_cv_calls_smtp_ssl(self, monkeypatch):
+        """send_cv must use SMTP_SSL (not SMTP+starttls)."""
+        import smtplib
+        from unittest import mock
+        import src.email_sender as em
+
+        monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_PASSWORD", "secret")
+        monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_HOST",     "smtp.gmail.com")
+        monkeypatch.setattr(em, "SMTP_PORT",     465)
+
+        mock_server = mock.MagicMock()
+        mock_server.__enter__ = mock.Mock(return_value=mock_server)
+        mock_server.__exit__  = mock.Mock(return_value=False)
+
+        with mock.patch("smtplib.SMTP_SSL", return_value=mock_server) as mock_ssl:
+            from src.email_sender import send_cv
+            send_cv(
+                to="r@example.com", subject="S", body_html="<p>B</p>",
+                docx_bytes=self.DUMMY_BYTES, docx_filename=self.DUMMY_FILENAME,
+            )
+        mock_ssl.assert_called_once()
+        args, kwargs = mock_ssl.call_args
+        assert args[0] == "smtp.gmail.com", "SMTP_SSL musi użyć SMTP_HOST"
+        assert args[1] == 465, "SMTP_SSL musi użyć portu 465"
+
+    def test_send_cv_calls_login(self, monkeypatch):
+        """send_cv must call server.login with SMTP_USER and SMTP_PASSWORD."""
+        import smtplib
+        from unittest import mock
+        import src.email_sender as em
+
+        monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_PASSWORD", "secret16charspass")
+        monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_HOST",     "smtp.gmail.com")
+        monkeypatch.setattr(em, "SMTP_PORT",     465)
+
+        mock_server = mock.MagicMock()
+        mock_server.__enter__ = mock.Mock(return_value=mock_server)
+        mock_server.__exit__  = mock.Mock(return_value=False)
+
+        with mock.patch("smtplib.SMTP_SSL", return_value=mock_server):
+            from src.email_sender import send_cv
+            send_cv(
+                to="r@example.com", subject="S", body_html="<p>B</p>",
+                docx_bytes=self.DUMMY_BYTES, docx_filename=self.DUMMY_FILENAME,
+            )
+        mock_server.login.assert_called_once_with("user@example.com", "secret16charspass")
+
+    def test_send_cv_attaches_docx(self, monkeypatch):
+        """send_cv must call sendmail — attachment included."""
+        import smtplib
+        from unittest import mock
+        import src.email_sender as em
+
+        monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_PASSWORD", "secret")
+        monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_HOST",     "smtp.gmail.com")
+        monkeypatch.setattr(em, "SMTP_PORT",     465)
+
+        mock_server = mock.MagicMock()
+        mock_server.__enter__ = mock.Mock(return_value=mock_server)
+        mock_server.__exit__  = mock.Mock(return_value=False)
+
+        with mock.patch("smtplib.SMTP_SSL", return_value=mock_server):
+            from src.email_sender import send_cv
+            send_cv(
+                to="r@example.com", subject="S", body_html="<p>B</p>",
+                docx_bytes=self.DUMMY_BYTES, docx_filename=self.DUMMY_FILENAME,
+            )
+        mock_server.sendmail.assert_called_once()
+        args = mock_server.sendmail.call_args[0]
+        assert "r@example.com" in args[1], "sendmail musi wysłać na adres odbiorcy"
+        # Verify attachment filename appears in raw message
+        assert self.DUMMY_FILENAME in args[2], "Nazwa pliku musi być w treści wiadomości"
+
+    def test_send_cv_missing_credentials_raises(self, monkeypatch):
+        """send_cv must raise RuntimeError when credentials are empty."""
+        import src.email_sender as em
+        monkeypatch.setattr(em, "SMTP_USER",     "")
+        monkeypatch.setattr(em, "SMTP_PASSWORD", "")
+
+        from src.email_sender import send_cv
+        with pytest.raises(RuntimeError, match="credentials"):
+            send_cv(
+                to="r@example.com", subject="S", body_html="<p>B</p>",
+                docx_bytes=self.DUMMY_BYTES, docx_filename=self.DUMMY_FILENAME,
+            )
+
+    def test_send_cv_auth_error_translates_to_readable_message(self, monkeypatch):
+        """SMTPAuthenticationError must be translated to a readable Polish message."""
+        import smtplib
+        from unittest import mock
+        import src.email_sender as em
+
+        monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_PASSWORD", "wrongpassword")
+        monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_HOST",     "smtp.gmail.com")
+        monkeypatch.setattr(em, "SMTP_PORT",     465)
+
+        mock_server = mock.MagicMock()
+        mock_server.__enter__ = mock.Mock(return_value=mock_server)
+        mock_server.__exit__  = mock.Mock(return_value=False)
+        mock_server.login.side_effect = smtplib.SMTPAuthenticationError(535, b"Bad credentials")
+
+        from src.email_sender import send_cv
+        with mock.patch("smtplib.SMTP_SSL", return_value=mock_server):
+            with pytest.raises(RuntimeError, match="logowania SMTP"):
+                send_cv(
+                    to="r@example.com", subject="S", body_html="<p>B</p>",
+                    docx_bytes=self.DUMMY_BYTES, docx_filename=self.DUMMY_FILENAME,
+                )
+
+    def test_send_cv_connection_timeout_translates_to_readable_message(self, monkeypatch):
+        """Connection timeout must be translated to a readable Polish message."""
+        import smtplib
+        from unittest import mock
+        import src.email_sender as em
+
+        monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_PASSWORD", "secret")
+        monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_HOST",     "smtp.gmail.com")
+        monkeypatch.setattr(em, "SMTP_PORT",     465)
+
+        from src.email_sender import send_cv
+        with mock.patch("smtplib.SMTP_SSL", side_effect=TimeoutError("[Errno 110] Connection timed out")):
+            with pytest.raises(RuntimeError, match="po.*czy.*serwerem SMTP"):
+                send_cv(
+                    to="r@example.com", subject="S", body_html="<p>B</p>",
+                    docx_bytes=self.DUMMY_BYTES, docx_filename=self.DUMMY_FILENAME,
+                )
+
+    def test_send_cv_no_starttls_called(self, monkeypatch):
+        """send_cv must NOT call starttls (uses SSL, not STARTTLS)."""
+        import smtplib
+        from unittest import mock
+        import src.email_sender as em
+
+        monkeypatch.setattr(em, "SMTP_USER",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_PASSWORD", "secret")
+        monkeypatch.setattr(em, "SMTP_FROM",     "user@example.com")
+        monkeypatch.setattr(em, "SMTP_HOST",     "smtp.gmail.com")
+        monkeypatch.setattr(em, "SMTP_PORT",     465)
+
+        mock_server = mock.MagicMock()
+        mock_server.__enter__ = mock.Mock(return_value=mock_server)
+        mock_server.__exit__  = mock.Mock(return_value=False)
+
+        with mock.patch("smtplib.SMTP_SSL", return_value=mock_server):
+            from src.email_sender import send_cv
+            send_cv(
+                to="r@example.com", subject="S", body_html="<p>B</p>",
+                docx_bytes=self.DUMMY_BYTES, docx_filename=self.DUMMY_FILENAME,
+            )
+        mock_server.starttls.assert_not_called()
+
+    def test_render_yaml_smtp_host_is_gmail(self):
+        """render.yaml musi używać smtp.gmail.com (dostępny z Render)."""
+        render_path = BASE_DIR / "render.yaml"
+        if not render_path.exists():
+            pytest.skip("brak render.yaml")
+        content = render_path.read_text(encoding="utf-8")
+        assert "smtp.gmail.com" in content, \
+            "render.yaml musi zawierać smtp.gmail.com (mail.tomaszuscinski.pl timeout z Render)"
+
+    def test_env_example_smtp_host_present(self):
+        """.env.example musi zawierać SMTP_HOST."""
+        env_ex = BASE_DIR / ".env.example"
+        if not env_ex.exists():
+            pytest.skip("brak .env.example")
+        content = env_ex.read_text(encoding="utf-8")
+        assert "SMTP_HOST" in content, ".env.example musi dokumentować SMTP_HOST"
+
+    def test_env_example_no_smtp_password(self):
+        """.env.example nie może zawierać wartości SMTP_PASSWORD."""
+        import re
+        env_ex = BASE_DIR / ".env.example"
+        if not env_ex.exists():
+            pytest.skip("brak .env.example")
+        content = env_ex.read_text(encoding="utf-8")
+        matches = re.findall(r"^SMTP_PASSWORD=(.+)$", content, re.MULTILINE)
+        assert not matches, f".env.example nie może zawierać wartości SMTP_PASSWORD: {matches}"

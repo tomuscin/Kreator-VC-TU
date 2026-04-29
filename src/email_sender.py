@@ -1,6 +1,6 @@
 """
-Email sender module for Kreator CV.
-Uses SMTP over SSL (port 465) — mail.tomaszuscinski.pl
+Email sender module for Kreator CV TU.
+Uses SMTP over SSL (port 465) — smtp.gmail.com on Render, mail.tomaszuscinski.pl locally.
 """
 
 import os
@@ -78,9 +78,19 @@ def send_cv(
     outer.attach(attachment)
 
     context = ssl.create_default_context(cafile=certifi.where())
-    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        server.sendmail(SMTP_FROM, [to], outer.as_string())
+    try:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=30) as server:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_FROM, [to], outer.as_string())
+    except smtplib.SMTPAuthenticationError:
+        raise RuntimeError(
+            "Błąd logowania SMTP. Sprawdź SMTP_USER i SMTP_PASSWORD / Google App Password."
+        )
+    except (TimeoutError, ConnectionRefusedError, OSError) as exc:
+        raise RuntimeError(
+            f"Nie udało się połączyć z serwerem SMTP ({SMTP_HOST}:{SMTP_PORT}). "
+            "Sprawdź SMTP_HOST, SMTP_PORT i konfigurację TLS/SSL."
+        ) from exc
 
 
 def test_connection() -> bool:

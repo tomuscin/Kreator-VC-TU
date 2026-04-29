@@ -15,15 +15,15 @@ services:
       - key: OPENAI_MODEL_MINI
         value: gpt-4.1-mini
       - key: SMTP_HOST
-        value: mail.tomaszuscinski.pl
+        value: smtp.gmail.com
       - key: SMTP_PORT
         value: "465"
       - key: SMTP_USER
-        sync: false          # tomasz@tomaszuscinski.pl — wpisz ręcznie
+        sync: false          # uscinski.tomek@gmail.com — wpisz ręcznie
       - key: SMTP_PASSWORD
-        sync: false          # hasło do poczty WEBD — wpisz ręcznie
+        sync: false          # Gmail App Password (16 znaków) — wpisz ręcznie
       - key: SMTP_FROM
-        value: tomasz@tomaszuscinski.pl
+        value: uscinski.tomek@gmail.com
       - key: SMTP_FROM_NAME
         value: "Tomasz Uściński"
       - key: APP_USERNAME
