@@ -148,12 +148,16 @@ async def test_smtp(_: str = Depends(lambda: None)):
     """Diagnostic: test SMTP connectivity and credentials from Render's server."""
     import smtplib, ssl, socket
     import certifi
-    from src.email_sender import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, _smtp_ssl_context
+    from src.email_sender import (
+        SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, RESEND_API_KEY, _smtp_ssl_context
+    )
     result = {
+        "transport": "resend" if RESEND_API_KEY else "smtp",
         "host": SMTP_HOST,
         "port": SMTP_PORT,
         "user": SMTP_USER,
         "password_set": bool(SMTP_PASSWORD),
+        "resend_key_set": bool(RESEND_API_KEY),
     }
     try:
         with socket.create_connection((SMTP_HOST, SMTP_PORT), timeout=8):

@@ -1,8 +1,12 @@
 """
 Email sender module for Kreator CV TU.
-Uses SMTP over SSL (port 465) — smtp.gmail.com on Render, mail.tomaszuscinski.pl locally.
+
+Transport priority:
+  1. Resend API  — used when RESEND_API_KEY is set (works on Render free tier)
+  2. SMTP        — fallback for local dev (port 587 STARTTLS or 465 implicit TLS)
 """
 
+import base64
 import os
 import smtplib
 import ssl
@@ -16,10 +20,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Use .get() with defaults — KeyError at import time crashes the whole app on Render.
-# Missing critical vars are caught lazily inside send_cv().
+# ── Resend ────────────────────────────────────────────────────────────
+RESEND_API_KEY  = os.environ.get("RESEND_API_KEY", "")
+
+# ── SMTP (local fallback) ─────────────────────────────────────────────
 SMTP_HOST        = os.environ.get("SMTP_HOST", "mail.tomaszuscinski.pl")
-SMTP_PORT        = int(os.environ.get("SMTP_PORT", "465"))
+SMTP_PORT        = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USER        = os.environ.get("SMTP_USER", "tomasz@tomaszuscinski.pl")
 SMTP_PASSWORD    = os.environ.get("SMTP_PASSWORD", "")
 SMTP_FROM        = os.environ.get("SMTP_FROM", SMTP_USER)
@@ -48,39 +54,79 @@ def send_cv(
     body_plain: str | None = None,
 ) -> None:
     """
-    Sends a CV email with a .docx attachment via SMTP SSL.
+    Sends a CV email with a .docx attachment.
 
-    Args:
-        to:            Recipient email address.
-        subject:       Email subject.
-        body_html:     HTML body of the email.
-        docx_bytes:    Raw bytes of the .docx file to attach.
-        docx_filename: Filename shown in the email attachment.
-        body_plain:    Optional plain text fallback (auto-generated if omitted).
+    Uses Resend API when RESEND_API_KEY is set (works on Render free tier).
+    Falls back to SMTP for local development.
 
     Raises:
-        smtplib.SMTPException: On SMTP errors.
+        RuntimeError: On configuration or delivery errors.
     """
+    plain = body_plain or _strip_html(body_html)
+    from_field = f"{SMTP_FROM_NAME} <{SMTP_FROM}>" if SMTP_FROM_NAME else SMTP_FROM
+
+    if RESEND_API_KEY:
+        _send_via_resend(to, subject, body_html, plain, from_field, docx_bytes, docx_filename)
+    else:
+        _send_via_smtp(to, subject, body_html, plain, from_field, docx_bytes, docx_filename)
+
+
+def _send_via_resend(
+    to: str,
+    subject: str,
+    body_html: str,
+    body_plain: str,
+    from_field: str,
+    docx_bytes: bytes,
+    docx_filename: str,
+) -> None:
+    import resend
+    resend.api_key = RESEND_API_KEY
+    params = resend.Emails.SendParams(
+        from_=from_field,
+        to=[to],
+        subject=subject,
+        html=body_html,
+        text=body_plain,
+        attachments=[
+            resend.Attachment(
+                filename=docx_filename,
+                content=list(docx_bytes),
+            )
+        ],
+    )
+    response = resend.Emails.send(params)
+    if not response.get("id"):
+        raise RuntimeError(f"Resend nie zwrócił ID wiadomości: {response}")
+
+
+def _send_via_smtp(
+    to: str,
+    subject: str,
+    body_html: str,
+    body_plain: str,
+    from_field: str,
+    docx_bytes: bytes,
+    docx_filename: str,
+) -> None:
     if not SMTP_USER or not SMTP_PASSWORD:
         raise RuntimeError("SMTP credentials are not configured.")
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    # Properly encode non-ASCII display name (Polish chars) per RFC 2047 / RFC 5322
     if SMTP_FROM_NAME:
-        encoded_name  = Header(SMTP_FROM_NAME, "utf-8").encode()
-        from_address  = f"{encoded_name} <{SMTP_FROM}>"
+        encoded_name = Header(SMTP_FROM_NAME, "utf-8").encode()
+        msg["From"]  = f"{encoded_name} <{SMTP_FROM}>"
     else:
-        from_address  = SMTP_FROM
-    msg["From"] = from_address
-    msg["To"]   = to
-
-    plain = body_plain or _strip_html(body_html)
-    msg.attach(MIMEText(plain, "plain", "utf-8"))
+        msg["From"]  = SMTP_FROM
+    msg["To"] = to
+    msg.attach(MIMEText(body_plain, "plain", "utf-8"))
     msg.attach(MIMEText(body_html, "html", "utf-8"))
 
-    # Attach .docx
-    attachment = MIMEApplication(docx_bytes, _subtype="vnd.openxmlformats-officedocument.wordprocessingml.document")
+    attachment = MIMEApplication(
+        docx_bytes,
+        _subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
     attachment.add_header("Content-Disposition", "attachment", filename=docx_filename)
 
     outer = MIMEMultipart("mixed")
@@ -93,12 +139,10 @@ def send_cv(
     context = _smtp_ssl_context()
     try:
         if SMTP_PORT == 465:
-            # Implicit TLS
             with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=30) as server:
                 server.login(SMTP_USER, SMTP_PASSWORD)
                 server.sendmail(SMTP_FROM, [to], outer.as_string())
         else:
-            # STARTTLS (port 587)
             with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
                 server.ehlo()
                 server.starttls(context=context)
@@ -107,7 +151,7 @@ def send_cv(
                 server.sendmail(SMTP_FROM, [to], outer.as_string())
     except smtplib.SMTPAuthenticationError:
         raise RuntimeError(
-            "Błąd logowania SMTP. Sprawdź SMTP_USER i SMTP_PASSWORD / Google App Password."
+            "Błąd logowania SMTP. Sprawdź SMTP_USER i SMTP_PASSWORD."
         )
     except (TimeoutError, ConnectionRefusedError, OSError) as exc:
         raise RuntimeError(
@@ -118,15 +162,18 @@ def send_cv(
 
 def test_connection() -> bool:
     """
-    Tests SMTP connection and authentication without sending any message.
+    Tests connectivity and credentials without sending a message.
 
-    Returns:
-        True if connection and login succeed.
-
-    Raises:
-        smtplib.SMTPAuthenticationError: On bad credentials.
-        smtplib.SMTPException: On other SMTP errors.
+    Uses Resend (validates API key via a dry-run domains call) or SMTP login.
+    Returns True on success, raises on failure.
     """
+    if RESEND_API_KEY:
+        import resend
+        resend.api_key = RESEND_API_KEY
+        # Listing domains is a lightweight authenticated call with no side effects
+        resend.Domains.list()
+        return True
+
     context = _smtp_ssl_context()
     if SMTP_PORT == 465:
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
